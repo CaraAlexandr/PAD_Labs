@@ -34,8 +34,6 @@ graph TD
     C --> I[Worker N]
 ```
 
-![System Architecture Diagram](Images/diagram.png)
-
 Service boundaries:
 1. **Task Management Service**: Handles task submission, status updates, and result retrieval.
 2. **Task Execution Service**: Manages workers, distributes tasks, and processes results.
