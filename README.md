@@ -1,4 +1,4 @@
-# Updated Distributed Task Queue System Overview
+# Distributed Task Queue System Overview
 
 ## 1. Application Suitability Assessment
 
