@@ -61,9 +61,9 @@ graph TD
     F3[Task Execution Service]
     end
 
-    classDef service fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef database fill:#bbb,stroke:#333,stroke-width:2px;
-    classDef gateway fill:#bbf,stroke:#333,stroke-width:4px;
+    classDef service stroke:#333,stroke-width:2px;
+    classDef database stroke:#333,stroke-width:2px;
+    classDef gateway stroke:#333,stroke-width:4px;
     class B gateway;
     class C,G,H database;
     class D,E,E2,E3,F,F2,F3 service;
