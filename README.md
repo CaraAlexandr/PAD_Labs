@@ -21,6 +21,7 @@ Real-world examples of similar systems using microservices:
 
 Here's a simple system architecture diagram:
 
+V1
 ```mermaid
 graph TD
     A[Client] --> B[Task Management Service]
@@ -32,6 +33,40 @@ graph TD
     C --> G[Worker 1]
     C --> H[Worker 2]
     C --> I[Worker N]
+```
+
+V2
+```mermaid
+graph TD
+    A[Actor] -->|REST, WebSocket| B[API Gateway]
+    B -->|publish| C[(Redis)]
+    B <-->|gRPC| D[Service Discovery]
+    B -->|load balancer| E[Task Management Service]
+    B -->|load balancer| F[Task Execution Service]
+    
+    C -->|message| E
+    E <-->|gRPC| F
+    E --> G[(PSQL)]
+    F --> H[(Result DB)]
+    
+    subgraph "Task Management Replicas"
+    E
+    E2[Task Management Service]
+    E3[Task Management Service]
+    end
+    
+    subgraph "Task Execution Replicas"
+    F
+    F2[Task Execution Service]
+    F3[Task Execution Service]
+    end
+
+    classDef service fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef database fill:#bbb,stroke:#333,stroke-width:2px;
+    classDef gateway fill:#bbf,stroke:#333,stroke-width:4px;
+    class B gateway;
+    class C,G,H database;
+    class D,E,E2,E3,F,F2,F3 service;
 ```
 
 Service boundaries:
