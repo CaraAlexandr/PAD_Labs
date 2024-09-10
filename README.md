@@ -56,7 +56,7 @@ Service boundaries:
   - WebSockets (real-time) for task status updates
   - Redis queue (asynchronous) for task distribution
 
-## 4. Data Management (3p)
+## 4. Data Management
 
 ### Task Management Service Endpoints:
 
