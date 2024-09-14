@@ -37,36 +37,41 @@ graph TD
 
 V2
 ```mermaid
-graph TD
-    A[Actor] -->|REST, WebSocket| B[API Gateway]
-    B -->|publish| C[(Redis)]
-    B <-->|gRPC| D[Service Discovery]
-    B -->|load balancer| E[Task Management Service]
-    B -->|load balancer| F[Task Execution Service]
-    
-    C -->|message| E
-    E <-->|gRPC| F
-    E --> G[(PSQL)]
-    F --> H[(Result DB)]
-    
-    subgraph "Task Management Replicas"
-    E
-    E2[Task Management Service]
-    E3[Task Management Service]
-    end
-    
-    subgraph "Task Execution Replicas"
-    F
-    F2[Task Execution Service]
-    F3[Task Execution Service]
-    end
+flowchart TD
+ subgraph subGraph0["Task Management Replicas"]
+        E["Task Management Service"]
+        E2["Task Management Service"]
+        E3["Task Management Service"]
+  end
+ subgraph subGraph1["Task Execution Replicas"]
+        F["Task Execution Service"]
+        F2["Task Execution Service"]
+        F3["Task Execution Service"]
+  end
+    A["Actor"] -- REST, WebSocket --> B["API Gateway"]
+    A["Actor"] -- WebSocket --> F
 
-    classDef service stroke:#333,stroke-width:2px;
-    classDef database stroke:#333,stroke-width:2px;
-    classDef gateway stroke:#333,stroke-width:4px;
-    class B gateway;
-    class C,G,H database;
-    class D,E,E2,E3,F,F2,F3 service;
+    B -- publish --> C[("Redis")]
+    B <-- gRPC --> D["Service Discovery"]
+    B -- load balancer --> E & F
+    C -- message --> E
+    E <-- gRPC --> F
+    E --> G[("PSQL")]
+    F --> H[("Result DB")]
+     E:::service
+     E2:::service
+     E3:::service
+     F:::service
+     F2:::service
+     F3:::service
+     B:::gateway
+     C:::database
+     D:::service
+     G:::database
+     H:::database
+    classDef service fill:#f9f,stroke:#333,stroke-width:2px
+    classDef database fill:#bbb,stroke:#333,stroke-width:2px
+    classDef gateway fill:#bbf,stroke:#333,stroke-width:4px
 ```
 
 Service boundaries:
@@ -90,6 +95,28 @@ Service boundaries:
   - RESTful APIs (synchronous) for worker management
   - WebSockets (real-time) for task status updates
   - Redis queue (asynchronous) for task distribution
+
+### Containerization and Orchestration:
+- Technology: Docker and Docker Compose
+- Purpose: Containerization and orchestration of services
+
+Docker Compose will be used to define and manage our multi-container Docker application. This approach offers several benefits for scalability:
+
+1. **Service Definition**: Each component (Task Management Service, Task Execution Service, PostgreSQL, Redis) will be defined as a service in a `docker-compose.yml` file. This allows for easy configuration and deployment of the entire stack.
+
+2. **Easy Scaling**: Docker Compose allows for easy scaling of services using the `--scale` option. For example:
+
+3. **Network Isolation**: Docker Compose creates a default network for the application, ensuring services can communicate securely while remaining isolated from the host network.
+
+4. **Volume Management**: Persistent data (for PostgreSQL and Redis) can be managed using named volumes, ensuring data persistence across container restarts and updates.
+
+5. **Environment Configuration**: Environment variables can be easily managed for each service, allowing for configuration changes without modifying the container images.
+
+6. **Load Balancing**: When scaling services, Docker Compose can work in conjunction with a reverse proxy (e.g., Nginx or Traefik) to distribute incoming requests across multiple container instances.
+
+7. **Rolling Updates**: Docker Compose facilitates rolling updates, allowing for zero-downtime deployments when updating services.
+
+This containerized approach provides a foundation for further scalability options, such as transitioning to Kubernetes for more advanced orchestration and scaling capabilities as the system grows.
 
 ## 4. Data Management
 
