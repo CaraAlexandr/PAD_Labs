@@ -180,7 +180,7 @@ This containerized approach provides a foundation for further scalability option
 
 ### Task Execution Service Endpoints:
 
-1. WebSocket: /socket.io
+1. WebSocket: /socket.io/{task-type}
    - Event: 'task_update'
    - Data:
      ```json
