@@ -1,29 +1,26 @@
-// gateway/src/app.module.ts
 import { Module, CacheModule } from '@nestjs/common';
-import { AppController } from './app.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AppController } from './app.controller';
 import { join } from 'path';
-import { ConfigModule } from '@nestjs/config';
-import * as redisStore from 'cache-manager-redis-store';
+import * as redisStore from 'cache-manager-ioredis';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    // Register Redis cache using cache-manager-ioredis
     CacheModule.register({
       store: redisStore,
       host: 'redis_pad',
       port: 6379,
-      ttl: 300, // seconds
     }),
+
+    // Register gRPC clients
     ClientsModule.register([
       {
         name: 'TASK_MANAGEMENT_PACKAGE',
         transport: Transport.GRPC,
         options: {
-          package: 'taskmanagement',
-          protoPath: join(__dirname, 'grpc/task_management.proto'),
+          package: 'task_management',
+          protoPath: join(__dirname, '../proto/task_management.proto'),
           url: 'task_management_service:50051',
         },
       },
@@ -31,14 +28,13 @@ import * as redisStore from 'cache-manager-redis-store';
         name: 'TASK_EXECUTION_PACKAGE',
         transport: Transport.GRPC,
         options: {
-          package: 'taskexecution',
-          protoPath: join(__dirname, 'grpc/task_execution.proto'),
+          package: 'task_execution',
+          protoPath: join(__dirname, '../proto/task_execution.proto'),
           url: 'task_execution_service:50052',
         },
       },
     ]),
   ],
   controllers: [AppController],
-  providers: [],
 })
 export class AppModule {}

@@ -1,12 +1,10 @@
-# docker-compose.yml
-
 services:
   # Task Management Service
   task_management_service:
     build: ./task_management_service
     ports:
-      - "8000:5000"    # REST API
-      - "50051:50051"  # gRPC
+      - "8000:5000"    # HTTP port (if needed)
+      - "50051:50051"  # gRPC port for task management
     depends_on:
       - redis_pad
       - db_task_management
@@ -19,28 +17,27 @@ services:
   task_execution_service:
     build: ./task_execution_service
     ports:
-      - "8001:5000"    # REST API and WebSocket
-      - "50052:50052"  # gRPC
+      - "8001:5000"    # HTTP port (if needed)
+      - "50052:50052"  # gRPC port for task execution
     depends_on:
       - redis_pad
       - db_task_execution
-      - task_management_service
     environment:
       - DATABASE_URL=postgresql://user:password@db_task_execution:5432/task_execution_db
     networks:
       - backend
 
   # Gateway Service
-#  gateway_pad:
-#    build: ./gateway
-#    ports:
-#      - "8002:3000"    # Gateway HTTP port
-#    depends_on:
-#      - task_management_service
-#      - task_execution_service
-#      - redis_pad
-#    networks:
-#      - backend
+  gateway_pad:
+    build: ./gateway
+    ports:
+      - "8002:3000"    # Gateway HTTP port
+    depends_on:
+      - task_management_service
+      - task_execution_service
+      - redis_pad
+    networks:
+      - backend
 
   # Service Discovery
   service_discovery:
@@ -84,4 +81,3 @@ services:
 
 networks:
   backend:
-    driver: bridge

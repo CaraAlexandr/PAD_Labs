@@ -1,8 +1,7 @@
 Flask
+Flask-SQLAlchemy
+Flask-Migrate
+psycopg2-binary
 grpcio
 grpcio-tools
-protobuf
-Flask-SQLAlchemy
-psycopg2-binary
 redis
-flask-cors

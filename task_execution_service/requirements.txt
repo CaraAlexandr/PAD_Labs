@@ -1,12 +1,11 @@
 Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-SocketIO
+psycopg2-binary
 grpcio
 grpcio-tools
-protobuf
-Flask-SQLAlchemy
-psycopg2-binary
 redis
-flask-cors
-flask-socketio
 eventlet
-numpy
 requests
+numpy

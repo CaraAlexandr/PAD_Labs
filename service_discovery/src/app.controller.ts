@@ -1,24 +1,23 @@
-// service_discovery/src/app.controller.ts
-import { Controller, Post, Body, Get } from '@nestjs/common';
-import { AppService, ServiceRegistration } from './app.service';
+import { Controller, Post, Get, Body } from '@nestjs/common';
+import { ServiceRegistry } from './service.registry';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly registry: ServiceRegistry) {}
 
   @Post('/register')
-  registerService(@Body() service: ServiceRegistration) {
-    this.appService.registerService(service);
+  registerService(@Body() serviceInfo) {
+    this.registry.registerService(serviceInfo.name, serviceInfo);
     return { message: 'Service registered successfully' };
   }
 
   @Get('/services')
-  listServices(): ServiceRegistration[] {
-    return this.appService.listServices();
+  getServices() {
+    return this.registry.getAllServices();
   }
 
   @Get('/status')
-  status() {
-    return { status: 'Service Discovery is running' };
+  getStatus(): string {
+    return 'Service Discovery is running';
   }
 }

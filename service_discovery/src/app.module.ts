@@ -1,11 +1,10 @@
-// service_discovery/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ServiceRegistry } from './service.registry';
 
 @Module({
   imports: [],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [ServiceRegistry],
 })
 export class AppModule {}
