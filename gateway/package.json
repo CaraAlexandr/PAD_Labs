@@ -1,26 +1,33 @@
 {
   "name": "gateway",
   "version": "1.0.0",
-  "dependencies": {
-    "@nestjs/common": "^8.0.0",
-    "@nestjs/core": "^8.0.0",
-    "@nestjs/microservices": "^8.0.0",
-    "@nestjs/platform-express": "^8.0.0",
-    "@nestjs/platform-socket.io": "^8.0.0",
-    "@nestjs/websockets": "^7.6.0",
-    "cache-manager": "^3.4.0",
-    "cache-manager-ioredis": "^2.0.0",
-    "grpc": "^1.24.2",
-    "ioredis": "^4.17.3",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.5.0",
-    "socket.io": "^4.0.0",
-    "@grpc/grpc-js": "^1.6.0"
-  },
+  "description": "Gateway Service",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "nest start"
+    "start": "nest start",
+    "build": "nest build",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@nestjs/common": "^9.0.0",
+    "@nestjs/core": "^9.0.0",
+    "@nestjs/microservices": "^9.0.0",
+    "@nestjs/platform-express": "^9.0.0",
+    "@nestjs/config": "^3.0.0",
+    "@nestjs/platform-socket.io": "^9.0.0",
+    "rxjs": "^7.0.0",
+    "reflect-metadata": "^0.1.13",
+    "@grpc/grpc-js": "^1.8.14",
+    "@nestjs/websockets": "^9.0.0",
+    "socket.io": "^4.7.1",
+    "cache-manager": "^3.6.0",
+    "cache-manager-redis-store": "^2.0.0",
+    "socket.io-client": "^4.7.1"
   },
   "devDependencies": {
-    "grpc-tools": "^1.12.4"
+    "@nestjs/cli": "^9.0.0",
+    "@nestjs/schematics": "^9.0.0",
+    "@nestjs/testing": "^9.0.0",
+    "typescript": "^4.9.5"
   }
 }

@@ -1,27 +1,23 @@
-FROM node:14-alpine
+# gateway/Dockerfile
+FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json first
 COPY package*.json ./
 
-# Install dependencies (including grpc-tools locally)
+# Upgrade NPM to the latest version
+RUN npm install -g npm@10.8.3
+
 RUN npm install
 
-# Install NestJS CLI globally in the container
-RUN npm install -g @nestjs/cli
-
-# Copy the rest of the application files
 COPY . .
 
-# Copy the proto folder into the container
-COPY ./proto /app/proto
+# Build the project, which copies .proto files to dist/grpc/
+RUN npm run build
 
-# Use npx to run grpc_tools_node_protoc to generate gRPC code
-RUN npx grpc_tools_node_protoc \
-  --js_out=import_style=commonjs,binary:./src \
-  --grpc_out=./src \
-  -I ./proto ./proto/*.proto
+# Verify that .proto files are present
+RUN ls -la dist/grpc/
 
-# Command to start the application
-CMD ["npm", "start"]
+EXPOSE 3000
+
+CMD ["node", "dist/main.js"]

@@ -1,0 +1,48 @@
+# task_management_service/app/task_management.proto
+syntax = "proto3";
+
+package taskmanagement;
+
+service TaskManagementService {
+  rpc CreateTask (TaskRequest) returns (TaskResponse);
+  rpc GetTaskById (GetTaskByIdRequest) returns (TaskResponse);
+  rpc ListTasks (ListTasksRequest) returns (TasksResponse);
+  rpc UpdateTaskStatus (UpdateTaskStatusRequest) returns (TaskResponse);
+}
+
+message TaskRequest {
+  string description = 1;
+  string task_type = 2;
+  string payload = 3;
+}
+
+message GetTaskByIdRequest {
+  int32 id = 1;
+}
+
+message ListTasksRequest {
+  int32 page_number = 1;
+  int32 page_size = 2;
+}
+
+message UpdateTaskStatusRequest {
+  int32 task_id = 1;
+  string status = 2;
+  string result = 3;
+}
+
+message TaskResponse {
+  int32 id = 1;
+  string description = 2;
+  string task_type = 3;
+  string status = 4;
+  string payload = 5;
+  string result = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string finished_at = 9;
+}
+
+message TasksResponse {
+  repeated TaskResponse tasks = 1;
+}

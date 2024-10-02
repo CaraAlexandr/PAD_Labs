@@ -1,0 +1,13 @@
+# task_execution_service/requirements.txt
+Flask
+grpcio
+grpcio-tools
+protobuf
+Flask-SQLAlchemy
+psycopg2-binary
+redis
+flask-cors
+flask-socketio
+eventlet
+numpy
+requests

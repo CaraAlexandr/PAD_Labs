@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package servicediscovery;
+
+service ServiceDiscovery {
+  rpc RegisterService (ServiceRegistration) returns (ServiceResponse);
+  rpc ListServices (Empty) returns (ServicesList);
+}
+
+message ServiceRegistration {
+  string name = 1;
+  string address = 2;
+  int32 port = 3;
+}
+
+message ServiceResponse {
+  string message = 1;
+}
+
+message Empty {}
+
+message ServicesList {
+  repeated ServiceRegistration services = 1;
+}

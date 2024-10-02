@@ -1,16 +1,30 @@
 {
   "name": "service_discovery",
   "version": "1.0.0",
-  "dependencies": {
-    "@nestjs/common": "^7.0.0",
-    "@nestjs/core": "^7.0.0",
-    "@nestjs/platform-express": "^7.0.0",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^6.5.5"
-  },
+  "description": "Service Discovery Service",
+  "main": "dist/main.js",
   "scripts": {
-    "build": "nest build",
     "start": "nest start",
-    "start:prod": "node dist/main.js"
+    "build": "nest build",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@nestjs/common": "^9.0.0",
+    "@nestjs/core": "^9.0.0",
+    "@nestjs/microservices": "^9.0.0",
+    "@nestjs/platform-express": "^9.0.0",
+    "rxjs": "^7.0.0",
+    "reflect-metadata": "^0.1.13",
+    "@nestjs/websockets": "^9.0.0",
+    "socket.io": "^4.7.1",
+    "cache-manager": "^3.6.0",
+    "cache-manager-redis-store": "^2.0.0",
+    "socket.io-client": "^4.7.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^9.0.0",
+    "@nestjs/schematics": "^9.0.0",
+    "@nestjs/testing": "^9.0.0",
+    "typescript": "^4.9.5"
   }
 }
