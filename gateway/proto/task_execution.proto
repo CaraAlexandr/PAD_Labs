@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package task_execution;
+
+service TaskExecutionService {
+  rpc StartTask (StartTaskRequest) returns (TaskExecutionResponse);
+  rpc GetTaskStatus (GetTaskStatusRequest) returns (TaskExecutionResponse);
+}
+
+message StartTaskRequest {
+  int32 task_id = 1;
+}
+
+message GetTaskStatusRequest {
+  int32 task_id = 1;
+}
+
+message TaskExecutionResponse {
+  int32 task_id = 1;
+  string status = 2;
+  string result = 3;
+}

@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+service TaskExecution {
+  // Define methods if needed
+}

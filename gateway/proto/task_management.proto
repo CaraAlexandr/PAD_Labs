@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package task_management;
+
+service TaskManagementService {
+  rpc CreateTask (CreateTaskRequest) returns (TaskResponse);
+  rpc GetTaskById (GetTaskByIdRequest) returns (TaskResponse);
+  rpc ListTasks (ListTasksRequest) returns (ListTasksResponse);
+}
+
+message CreateTaskRequest {
+  string description = 1;
+  string task_type = 2;
+}
+
+message GetTaskByIdRequest {
+  int32 task_id = 1;
+}
+
+message ListTasksRequest {
+  int32 page_number = 1;
+  int32 page_size = 2;
+}
+
+message TaskResponse {
+  int32 id = 1;
+  string description = 2;
+  string task_type = 3;
+  string status = 4;
+}
+
+message ListTasksResponse {
+  repeated TaskResponse tasks = 1;
+}

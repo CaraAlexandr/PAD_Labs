@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Task Management Service
+  task_management_service:
+    build: ./task_management_service
+    ports:
+      - "8000:5000"    # HTTP port (if needed)
+      - "50051:50051"  # gRPC port for task management
+    depends_on:
+      - redis_pad
+      - db_task_management
+    environment:
+      - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
+    networks:
+      - backend
+
+  # Task Execution Service
+  task_execution_service:
+    build: ./task_execution_service
+    ports:
+      - "8001:5000"    # HTTP port (if needed)
+      - "50052:50052"  # gRPC port for task execution
+    depends_on:
+      - redis_pad
+      - db_task_execution
+    environment:
+      - DATABASE_URL=postgresql://user:password@db_task_execution:5432/task_execution_db
+    networks:
+      - backend
+
+  # Gateway Service
+  gateway_pad:
+    build: ./gateway
+    ports:
+      - "8002:3000"    # Gateway HTTP port
+    depends_on:
+      - task_management_service
+      - task_execution_service
+      - redis_pad
+    networks:
+      - backend
+
+  # Service Discovery
+  service_discovery:
+    build: ./service_discovery
+    ports:
+      - "8003:3000"    # Service Discovery port
+    networks:
+      - backend
+
+  # Redis
+  redis_pad:
+    image: redis:alpine
+    ports:
+      - "6379:6379"  # Redis port
+    networks:
+      - backend
+
+  # PostgreSQL for Task Management
+  db_task_management:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: task_management_db
+    ports:
+      - "5432:5432"  # PostgreSQL for task management
+    networks:
+      - backend
+
+  # PostgreSQL for Task Execution
+  db_task_execution:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: task_execution_db
+    ports:
+      - "5433:5432"  # PostgreSQL for task execution
+    networks:
+      - backend
+
+networks:
+  backend:

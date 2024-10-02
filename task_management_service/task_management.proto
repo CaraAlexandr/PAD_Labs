@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+service TaskManagement {
+  rpc UpdateTaskStatus(TaskStatusUpdate) returns (UpdateResponse) {}
+}
+
+message TaskStatusUpdate {
+  int32 task_id = 1;
+  string status = 2;
+}
+
+message UpdateResponse {
+  string message = 1;
+}
