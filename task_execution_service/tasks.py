@@ -1,3 +1,5 @@
+import logging
+
 import grpc
 import task_management_pb2
 import task_management_pb2_grpc
@@ -15,6 +17,7 @@ def process_task(task_id, socketio):
         # Retrieve the task from the database
         task = Task.query.get(task_id)
         if not task:
+            logging.error(f"Task with ID {task_id} not found.")
             return
 
         task_type = task.task_type
@@ -61,11 +64,18 @@ def process_task(task_id, socketio):
         # Update Task Management Service via gRPC
         with grpc.insecure_channel('task_management_service:50051') as channel:
             stub = task_management_pb2_grpc.TaskManagementServiceStub(channel)
-            stub.UpdateTaskStatus(task_management_pb2.UpdateTaskStatusRequest(
-                task_id=task_id,
-                status='completed',
-                result=json.dumps(result)
-            ))
+            try:
+                response = stub.UpdateTaskStatus(task_management_pb2.TaskStatusUpdate(
+                    task_id=task_id,
+                    status='completed',
+                    result=json.dumps(result)
+                ))
+                if response.success:
+                    logging.info(f"Task {task_id} status updated to 'completed' successfully.")
+                else:
+                    logging.error(f"Failed to update status for Task {task_id}.")
+            except grpc.RpcError as e:
+                logging.error(f"gRPC error when updating task status: {e.details()}")
 
         # Notify clients via WebSocket
         socketio.emit('task_update', {'id': task_id, 'status': 'completed', 'result': result}, namespace='/lobby',
