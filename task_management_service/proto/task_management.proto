@@ -23,7 +23,8 @@ message TaskResponse {
     string task_type = 3;
     string status = 4;
     string payload = 5;
-    string result = 6;  // Added result field
+    string result = 6;
+    string start_time = 7;
 }
 
 message TaskIdRequest {

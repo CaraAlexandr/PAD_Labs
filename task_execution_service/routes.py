@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify, request
+# routes.py
+from flask import Blueprint, jsonify, request, current_app
 from models import Worker
 from extensions import db
-from threading import Thread
+from workers import start_worker  # Import from workers.py
 
 worker_bp = Blueprint('worker_bp', __name__)
 status_bp = Blueprint('status_bp', __name__)
@@ -25,8 +26,7 @@ def add_worker():
     db.session.add(worker)
     db.session.commit()
     # Start a new worker thread
-    from app import start_worker
-    Thread(target=start_worker, args=(worker.id,), daemon=True).start()
+    start_worker(worker.id, current_app.socketio, current_app._get_current_object())
     return jsonify({'id': worker.id, 'name': worker.name}), 201
 
 @worker_bp.route('/workers/<int:worker_id>', methods=['DELETE'])

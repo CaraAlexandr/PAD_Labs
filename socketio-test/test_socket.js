@@ -1,3 +1,5 @@
+// client.js
+
 const io = require('socket.io-client');
 
 // Connect to the /lobby namespace on port 5001
@@ -6,8 +8,11 @@ const socket = io('http://localhost:5001/lobby');
 socket.on('connect', () => {
     console.log('Connected to server');
 
-    // Emit join_task event
-    socket.emit('join_task', { task_id: '14', user: 'TestUser' });
+    // // Join the general room
+    // socket.emit('join_all_tasks', { user: 'TestUser' });
+
+    // Join a specific task room
+    socket.emit('join_task', { task_id: '19', user: 'TestUser' });
 });
 
 socket.on('joined', (data) => {

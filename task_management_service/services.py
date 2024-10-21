@@ -1,4 +1,6 @@
 # task_management_service/services.py
+
+import datetime
 import grpc
 import task_management_pb2
 import task_management_pb2_grpc
@@ -21,7 +23,9 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
                 description=request.description,
                 task_type=request.task_type,
                 status='pending',
-                payload=request.payload
+                payload=request.payload,
+                result="",  # Initialize result as empty string
+                start_time=datetime.datetime.utcnow(),
             )
             db.session.add(new_task)
             db.session.commit()
@@ -37,7 +41,8 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
                 task_type=new_task.task_type,
                 status=new_task.status,
                 payload=new_task.payload,
-                result=new_task.result or ""
+                result=new_task.result,
+                start_time=new_task.start_time.isoformat() if new_task.start_time else "",
             )
 
     def GetTaskById(self, request, context):
@@ -51,7 +56,8 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
                     task_type=task.task_type,
                     status=task.status,
                     payload=task.payload,
-                    result=task.result or ""
+                    result=task.result or "",
+                    start_time=task.start_time.isoformat() if task.start_time else "",
                 )
             else:
                 logging.warning(f"Task with ID {request.id} not found.")
@@ -65,6 +71,8 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
             if task:
                 task.status = request.status
                 task.result = request.result  # Save the result
+                if request.status == 'completed' and not task.end_time:
+                    task.end_time = datetime.datetime.utcnow()
                 db.session.commit()
                 logging.info(f"Updated Task ID {task.id} status to {task.status}.")
                 return task_management_pb2.TaskStatusResponse(success=True)
@@ -76,7 +84,7 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
 
     def ListTasks(self, request, context):
         with self.app.app_context():
-            tasks_query = Task.query.all()
+            tasks_query = Task.query.offset((request.page_number - 1) * request.page_size).limit(request.page_size).all()
             tasks = [
                 task_management_pb2.TaskResponse(
                     id=task.id,
@@ -84,7 +92,8 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
                     task_type=task.task_type,
                     status=task.status,
                     payload=task.payload,
-                    result=task.result or ""
+                    result=task.result or "",
+                    start_time=task.start_time.isoformat() if task.start_time else "",
                 ) for task in tasks_query
             ]
         return task_management_pb2.TasksResponse(tasks=tasks)

@@ -64,7 +64,7 @@ services:
       dockerfile: Dockerfile
     container_name: task_execution_service
     ports:
-      - "5001:5000"    # Flask HTTP
+      - "5001:5001"    # Flask HTTP
       - "50052:50052"  # gRPC
     depends_on:
       - redis_pad

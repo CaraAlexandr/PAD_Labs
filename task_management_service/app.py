@@ -1,4 +1,5 @@
 # task_management_service/app.py
+
 from flask import Flask
 from flask_migrate import Migrate
 import grpc
@@ -6,7 +7,9 @@ from concurrent import futures
 from services import TaskManagementServicer
 import threading
 from extensions import db
-import task_management_pb2_grpc  # Import added
+import logging
+
+import task_management_pb2_grpc  # Ensure this is correctly generated
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@db_task_management:5432/task_management_db'
@@ -20,7 +23,6 @@ from routes import task_bp, status_bp
 app.register_blueprint(task_bp)
 app.register_blueprint(status_bp)
 
-import logging
 logging.basicConfig(level=logging.INFO)
 
 # gRPC server
