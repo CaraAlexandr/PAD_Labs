@@ -1,3 +1,4 @@
+# tasks.py
 import logging
 
 import grpc
@@ -24,8 +25,10 @@ def process_task(task_id, socketio):
         task.status = 'in_progress'
         db.session.commit()
 
-        # Notify clients via WebSocket
-        socketio.emit('task_update', {'id': task_id, 'status': 'in_progress'}, namespace='/lobby', broadcast=True)
+        # Notify clients via WebSocket to the specific task room
+        room = str(task_id)
+        socketio.emit('task_update', {'id': task_id, 'status': 'in_progress'}, namespace='/lobby', room=room)
+        logging.info(f"Emitted 'in_progress' status to room {room}")
 
         # Execute the task based on its type
         if task_type == 'word_count':
@@ -77,9 +80,9 @@ def process_task(task_id, socketio):
             except grpc.RpcError as e:
                 logging.error(f"gRPC error when updating task status: {e.details()}")
 
-        # Notify clients via WebSocket
-        socketio.emit('task_update', {'id': task_id, 'status': 'completed', 'result': result}, namespace='/lobby',
-                      broadcast=True)
+        # Notify clients via WebSocket to the specific task room
+        socketio.emit('task_update', {'id': task_id, 'status': 'completed', 'result': result}, namespace='/lobby', room=room)
+        logging.info(f"Emitted 'completed' status to room {room}")
 
 def word_count(text):
     """Counts the number of words in the given text."""

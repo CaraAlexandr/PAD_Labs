@@ -49,6 +49,7 @@ export class AppController implements OnModuleInit {
     try {
       const response = await lastValueFrom(this.taskManagementService.createTask(body));
       this.logger.log(`Task created with ID: ${response.id}`);
+      this.logger.log(`Task created: ${response}`);
       return response;
     } catch (error) {
       this.logger.error(`Error creating task: ${error.message}`);
@@ -102,5 +103,10 @@ export class AppController implements OnModuleInit {
       this.logger.error(`Error listing tasks: ${error.message}`);
       throw error;
     }
+  }
+
+    @Get('/status')
+  getStatus(): string {
+    return 'Gateway is running';
   }
 }

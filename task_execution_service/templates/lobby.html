@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Lobby</title>
+</head>
+<body>
+    <h1>Task Lobby</h1>
+    <ul id="task-updates"></ul>
+
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        var socket = io('http://localhost:5001/lobby');
+
+        socket.on('connect', function() {
+            console.log('Connected to WebSocket server');
+            socket.emit('join', { room: 'all' });
+        });
+
+        socket.on('task_update', function(data) {
+            var updatesList = document.getElementById('task-updates');
+            var newItem = document.createElement('li');
+            newItem.textContent = `Task ID: ${data.id}, Status: ${data.status}, Message: ${data.message || ''}, Result: ${data.result || ''}`;
+            updatesList.appendChild(newItem);
+        });
+    </script>
+</body>
+</html>

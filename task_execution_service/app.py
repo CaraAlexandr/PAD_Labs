@@ -1,7 +1,7 @@
-# task_execution_service/app.py
-from flask import Flask
+# app.py
+from flask import Flask, request
 from flask_migrate import Migrate
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, leave_room, emit
 import grpc
 from concurrent import futures
 import threading
@@ -27,6 +27,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 migrate = Migrate(app, db)
 
+# Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
 redis_client = redis.Redis(host='redis_pad', port=6379)
 
@@ -36,6 +37,35 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(status_bp)
 
 logging.basicConfig(level=logging.INFO)
+
+# SocketIO Event Handlers
+@socketio.on('join_task', namespace='/lobby')
+def handle_join_task(data):
+    task_id = data.get('task_id')
+    user = data.get('user', 'Unknown')  # Optional: Get user info if provided
+    if task_id:
+        room = str(task_id)
+        join_room(room)
+        logging.info(f"User {user} (Session ID: {request.sid}) joined task room: {room}")
+        emit('joined', {'room': room})
+    else:
+        emit('error', {'message': 'No task_id provided'})
+
+@socketio.on('leave_task', namespace='/lobby')
+def handle_leave_task(data):
+    task_id = data.get('task_id')
+    user = data.get('user', 'Unknown')  # Optional: Get user info if provided
+    if task_id:
+        room = str(task_id)
+        leave_room(room)
+        logging.info(f"User {user} (Session ID: {request.sid}) left task room: {room}")
+        emit('left', {'room': room})
+    else:
+        emit('error', {'message': 'No task_id provided'})
+
+@socketio.on('disconnect', namespace='/lobby')
+def handle_disconnect():
+    logging.info(f"User {request.sid} disconnected from /lobby namespace.")
 
 def send_alert(message):
     try:

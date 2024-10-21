@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Lobby - Task {{ task_id }}</title>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.slim.js"></script>
+</head>
+<body>
+    <h1>Task Lobby - Task {{ task_id }}</h1>
+    <div id="task"></div>
+    <script type="text/javascript">
+        var taskId = '{{ task_id }}';
+        var socket = io('/lobby');
+        var taskDiv = document.getElementById('task');
+
+        socket.on('connect', function() {
+            socket.emit('join', {'room': taskId});
+            console.log('Connected to lobby room "' + taskId + '"');
+        });
+
+        socket.on('task_update', function(data) {
+            if (data.id == taskId) {
+                taskDiv.innerHTML = 'Task ID: ' + data.id + ' | Status: ' + data.status + (data.message ? ' | Message: ' + data.message : '') + (data.result ? ' | Result: ' + JSON.stringify(data.result) : '');
+            }
+        });
+    </script>
+</body>
+</html>

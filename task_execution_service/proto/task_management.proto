@@ -23,7 +23,9 @@ message TaskResponse {
     string task_type = 3;
     string status = 4;
     string payload = 5;
-    string result = 6;  // Added result field
+    string result = 6;
+    int32 worker_id = 7;
+    string worker = 8;
 }
 
 message TaskIdRequest {

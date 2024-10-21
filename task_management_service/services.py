@@ -16,6 +16,7 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
 
     def CreateTask(self, request, context):
         with self.app.app_context():
+            logging.info(f"Received CreateTask request: {request}")
             new_task = Task(
                 description=request.description,
                 task_type=request.task_type,

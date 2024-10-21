@@ -9,7 +9,14 @@ status_bp = Blueprint('status_bp', __name__)
 @worker_bp.route('/workers', methods=['GET'])
 def get_workers():
     workers = Worker.query.all()
-    return jsonify([{'id': w.id, 'name': w.name, 'status': w.status} for w in workers]), 200
+    return jsonify([{
+        'id': w.id,
+        'name': w.name,
+        'status': w.status,
+        'current_task_id': w.current_task_id,
+        'start_time': w.start_time,
+        'end_time': w.end_time
+    } for w in workers]), 200
 
 @worker_bp.route('/workers', methods=['POST'])
 def add_worker():
@@ -19,7 +26,7 @@ def add_worker():
     db.session.commit()
     # Start a new worker thread
     from app import start_worker
-    Thread(target=start_worker).start()
+    Thread(target=start_worker, args=(worker.id,), daemon=True).start()
     return jsonify({'id': worker.id, 'name': worker.name}), 201
 
 @worker_bp.route('/workers/<int:worker_id>', methods=['DELETE'])
