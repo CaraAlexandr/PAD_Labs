@@ -6,17 +6,19 @@ import task_management_pb2_grpc
 import grpc
 import json
 from flask import Flask
+from flask_socketio import SocketIO
 import logging
 
 class TaskExecutionServicer(task_execution_pb2_grpc.TaskExecutionServiceServicer):
-    def __init__(self, app: Flask):
+    def __init__(self, app: Flask, socketio: SocketIO):
         self.app = app
+        self.socketio = socketio
         self.task_management_channel = grpc.insecure_channel('task_management_service:50051')
         self.task_management_stub = task_management_pb2_grpc.TaskManagementServiceStub(self.task_management_channel)
         logging.basicConfig(level=logging.INFO)
 
     def StartTask(self, request, context):
-        task_id = request.taskId  # Ensure the field name matches the .proto file
+        task_id = request.taskId
         logging.info(f"Received StartTask request for Task ID: {task_id}")
 
         # Fetch task details from Task Management Service
@@ -26,18 +28,15 @@ class TaskExecutionServicer(task_execution_pb2_grpc.TaskExecutionServiceServicer
             )
             logging.info(f"Fetched Task Details: {task_response}")
         except grpc.RpcError as e:
-            logging.error(f"gRPC Error while fetching task: {e.code()} - {e.details()}")
+            logging.error(f"gRPC Error: {e}")
             context.set_code(e.code())
             context.set_details(e.details())
             return task_execution_pb2.TaskExecutionResponse()
 
-        if not task_response.id:
-            logging.error(f"Task with ID {task_id} not found.")
-            context.set_code(grpc.StatusCode.NOT_FOUND)
-            context.set_details(f"Task with ID {task_id} not found")
-            return task_execution_pb2.TaskExecutionResponse()
+        # Emit task update when task starts
+        self._broadcast_task_update(task_id, 'started')
 
-        # Execute the task
+        # Execute the task and get the result
         result = self.execute_task(task_response)
         logging.info(f"Execution Result for Task ID {task_id}: {result}")
 
@@ -57,6 +56,9 @@ class TaskExecutionServicer(task_execution_pb2_grpc.TaskExecutionServiceServicer
             context.set_details(e.details())
             return task_execution_pb2.TaskExecutionResponse()
 
+        # Emit task completion updates
+        self._broadcast_task_update(task_id, 'completed', json.dumps(result))
+
         return task_execution_pb2.TaskExecutionResponse(
             taskId=task_id,
             status='completed',
@@ -64,9 +66,32 @@ class TaskExecutionServicer(task_execution_pb2_grpc.TaskExecutionServiceServicer
         )
 
     def execute_task(self, task):
-        # Implement the actual task execution logic based on task_type
         if task.task_type == 'word_count':
-            word_count = len(task.payload.split())
-            return {"word_count": word_count}
-        # Add other task types as needed
+            return {"word_count": len(task.payload.split())}
         return {}
+
+    def _broadcast_task_update(self, task_id, status, result=None):
+        """
+        Broadcasts task updates to both the specific task room and the general room.
+        """
+        try:
+            logging.info(f"Broadcasting task update: {task_id} status: {status}")
+            with self.app.app_context():
+                # Emit to specific task room
+                self.socketio.emit('task_update', {
+                    'id': task_id,
+                    'status': status,
+                    'result': result
+                }, namespace='/lobby', room=str(task_id))
+
+                # Emit to general lobby
+                self.socketio.emit('task_update', {
+                    'id': task_id,
+                    'status': status,
+                    'result': result
+                }, namespace='/lobby', room='all_tasks')
+
+                logging.info(f"Broadcast successful: Task ID {task_id} - Status {status}")
+
+        except Exception as e:
+            logging.error(f"Error broadcasting task update for Task ID {task_id}: {e}")

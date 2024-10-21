@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request, current_app
 from models import Worker
 from extensions import db
-from workers import start_worker  # Import from workers.py
+from workers import start_worker
 
 worker_bp = Blueprint('worker_bp', __name__)
 status_bp = Blueprint('status_bp', __name__)
@@ -25,7 +25,6 @@ def add_worker():
     worker = Worker(name=data['name'], status='active')
     db.session.add(worker)
     db.session.commit()
-    # Start a new worker thread
     start_worker(worker.id, current_app.socketio, current_app._get_current_object())
     return jsonify({'id': worker.id, 'name': worker.name}), 201
 
@@ -35,7 +34,6 @@ def remove_worker(worker_id):
     if worker:
         worker.status = 'inactive'
         db.session.commit()
-        # Implement logic to stop the worker thread if needed
         return jsonify({'message': 'Worker removed'}), 200
     else:
         return jsonify({'error': 'Worker not found'}), 404
