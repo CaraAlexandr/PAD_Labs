@@ -1,7 +1,7 @@
-// gateway/src/app.module.ts
 import { Module, CacheModule } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AppController } from './app.controller';
+import { GatewayService } from './gateway.service'; // Import GatewayService
 import { join } from 'path';
 import * as redisStore from 'cache-manager-ioredis';
 import { TimeoutInterceptor } from './timeout.interceptor';
@@ -40,6 +40,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [AppController],
   providers: [
+    GatewayService, // Ensure GatewayService is registered
     {
       provide: APP_INTERCEPTOR,
       useClass: TimeoutInterceptor,

@@ -97,3 +97,4 @@ class TaskManagementServicer(task_management_pb2_grpc.TaskManagementServiceServi
                 ) for task in tasks_query
             ]
         return task_management_pb2.TasksResponse(tasks=tasks)
+

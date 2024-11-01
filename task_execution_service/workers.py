@@ -48,8 +48,8 @@ def start_worker(socketio, app, num_workers=10):
 
 def monitor_redis_queue():
     redis_client = redis.Redis(host='redis_pad', port=6379)
-    critical_threshold = 60
-    check_interval = 30
+    critical_threshold = 1
+    check_interval = 1
     while True:
         try:
             queue_length = redis_client.llen('task_queue')

@@ -9,6 +9,7 @@ import random
 import numpy as np
 
 def process_task(task_id, socketio):
+    time.sleep(10)
     with current_app.app_context():
         task = Task.query.get(task_id)
         if not task:

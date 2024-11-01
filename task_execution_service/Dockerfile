@@ -12,4 +12,7 @@ COPY . .
 RUN python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/task_execution.proto
 RUN python -m grpc_tools.protoc -Iproto --python_out=. --grpc_python_out=. proto/task_management.proto
 
+EXPOSE 5001
+EXPOSE 50052
+
 CMD ["python", "app.py"]

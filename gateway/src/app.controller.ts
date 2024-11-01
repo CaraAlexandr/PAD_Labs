@@ -1,5 +1,4 @@
-// gateway/src/app.controller.ts
-
+//gateway/app.controller.ts
 import {
   Controller,
   Post,
@@ -11,45 +10,20 @@ import {
   ParseIntPipe,
   Logger,
 } from '@nestjs/common';
-import { ClientGrpc } from '@nestjs/microservices';
-import { Observable, lastValueFrom } from 'rxjs';
-
-interface TaskManagementService {
-  createTask(data: { description: string; task_type: string; payload: string }): Observable<any>;
-  getTaskById(data: { id: number }): Observable<any>;
-  listTasks(data: { page_number: number; page_size: number }): Observable<any>;
-}
-
-interface TaskExecutionService {
-  startTask(data: { taskId: number }): Observable<any>;
-  getTaskStatus(data: { taskId: number }): Observable<any>;
-}
+import { GatewayService } from './gateway.service';
 
 @Controller()
-export class AppController implements OnModuleInit {
+export class AppController {
   private readonly logger = new Logger(AppController.name);
-  private taskManagementService: TaskManagementService;
-  private taskExecutionService: TaskExecutionService;
 
-  constructor(
-    @Inject('TASK_MANAGEMENT_PACKAGE') private readonly taskManagementClient: ClientGrpc,
-    @Inject('TASK_EXECUTION_PACKAGE') private readonly taskExecutionClient: ClientGrpc,
-  ) {}
-
-  onModuleInit() {
-    this.taskManagementService =
-      this.taskManagementClient.getService<TaskManagementService>('TaskManagementService');
-    this.taskExecutionService =
-      this.taskExecutionClient.getService<TaskExecutionService>('TaskExecutionService');
-  }
+  constructor(private readonly gatewayService: GatewayService) {}
 
   @Post('/tasks')
   async createTask(@Body() body) {
     this.logger.log(`Creating task with data: ${JSON.stringify(body)}`);
     try {
-      const response = await lastValueFrom(this.taskManagementService.createTask(body));
+      const response = await this.gatewayService.createTask(body);
       this.logger.log(`Task created with ID: ${response.id}`);
-      this.logger.log(`Task created: ${response}`);
       return response;
     } catch (error) {
       this.logger.error(`Error creating task: ${error.message}`);
@@ -61,7 +35,7 @@ export class AppController implements OnModuleInit {
   async getTaskById(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Fetching task with ID: ${id}`);
     try {
-      const response = await lastValueFrom(this.taskManagementService.getTaskById({ id }));
+      const response = await this.gatewayService.getTaskById(id);
       return response;
     } catch (error) {
       this.logger.error(`Error fetching task: ${error.message}`);
@@ -73,7 +47,7 @@ export class AppController implements OnModuleInit {
   async startTask(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Starting task with ID: ${id}`);
     try {
-      const response = await lastValueFrom(this.taskExecutionService.startTask({ taskId: id }));
+      const response = await this.gatewayService.startTask(id);
       return response;
     } catch (error) {
       this.logger.error(`Error starting task: ${error.message}`);
@@ -85,7 +59,7 @@ export class AppController implements OnModuleInit {
   async getTaskStatus(@Param('id', ParseIntPipe) id: number) {
     this.logger.log(`Getting status for task ID: ${id}`);
     try {
-      const response = await lastValueFrom(this.taskExecutionService.getTaskStatus({ taskId: id }));
+      const response = await this.gatewayService.getTaskStatus(id);
       return response;
     } catch (error) {
       this.logger.error(`Error getting task status: ${error.message}`);
@@ -97,7 +71,7 @@ export class AppController implements OnModuleInit {
   async listTasks(@Body() body) {
     this.logger.log(`Listing tasks with parameters: ${JSON.stringify(body)}`);
     try {
-      const response = await lastValueFrom(this.taskManagementService.listTasks(body));
+      const response = await this.gatewayService.listTasks(body);
       return response;
     } catch (error) {
       this.logger.error(`Error listing tasks: ${error.message}`);
@@ -105,7 +79,7 @@ export class AppController implements OnModuleInit {
     }
   }
 
-    @Get('/status')
+  @Get('/status')
   getStatus(): string {
     return 'Gateway is running';
   }

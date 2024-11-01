@@ -42,8 +42,8 @@ services:
       context: ./task_management_service
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"    # Flask HTTP
-      - "50051:50051"  # gRPC
+      - "5000"    # Flask HTTP
+      - "50051"  # gRPC
     depends_on:
       - redis_pad
       - db_task_management
@@ -51,7 +51,7 @@ services:
       - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
     networks:
       - backend
-    restart: unless-stopped
+#    restart: unless-stopped
     deploy:
       replicas: 3
 
@@ -61,8 +61,8 @@ services:
       context: ./task_execution_service
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"    # Flask HTTP
-      - "50052:50052"  # gRPC
+      - "5001"    # Flask HTTP
+      - "50052"  # gRPC
     depends_on:
       - redis_pad
       - db_task_execution
