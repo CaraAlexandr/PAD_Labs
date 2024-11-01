@@ -1,271 +1,418 @@
-# Distributed Task Queue System Overview
+# Distributed Task Queue System
 
-## 1. Application Suitability Assessment
+## PlantUML Architecture Diagram
 
-Our distributed task queue system is highly suitable for a microservices architecture for the following reasons:
+![ZLPDZzis4BthLmmG86s16Ccb5n-Ax7gDJH1luDWEYgBjOIoD9S8KgPBKRfnVdnbAilMnRlPcaU-z6Suy3ltU1tIXBdKILD04Tye7f_Pre0nsw8_mfQQQO7loWKguSMcX0gMXTfGa_gXCXGvBI6rPMKCcRCE9HHmZqEIQUX1ZC_9KmU_lUeiEpR5TJ7w1EpeeGnSn3qyg581QeISFQ3BU](https://github.com/user-attachments/assets/d1a5aa56-085d-4b58-9344-3a39c53fa5fd)
 
-1. **Scalability**: The system can handle varying loads by scaling individual components independently. This is particularly important for processing diverse task types with different resource requirements.
-2. **Modularity**: Task submission, execution, and monitoring are separate concerns that can be developed and maintained independently.
-3. **Technology Diversity**: Different services can use appropriate technologies (Python for task management, Node.js for execution).
-4. **Fault Isolation**: Issues in one service (e.g., task execution) don't directly affect others (e.g., task submission).
-5. **Independent Deployment**: Services can be updated or deployed separately, reducing downtime and risk.
-6. **Task Diversity**: The system can handle a wide range of task types, from quick text processing to long-running simulations, demonstrating its flexibility.
 
-Real-world examples of similar systems using microservices:
+### Diagram Explanation
 
-- **Celery**: An asynchronous task queue used by Instagram and Mozilla.
-- **Apache Airflow**: A workflow management platform used by Airbnb and Lyft.
-- **AWS Step Functions**: A serverless workflow service used by NASA and Intuit.
+- **Clients**: Users or applications that interact with the system by submitting tasks and retrieving results.
 
-## 2. Service Boundaries
+- **Load Balancer (Nginx)**: Distributes incoming client requests among multiple API Gateway instances.
 
-Here's a simple system architecture diagram:
+- **API Gateway**: Serves as the entry point, handling client requests, implementing the Circuit Breaker, and routing requests to appropriate services using Service Discovery.
 
-V1
-```mermaid
-graph TD
-    A[Client] --> B[Task Management Service]
-    A --> C[Task Execution Service]
-    B <--> D[(PostgreSQL)]
-    B <--> E[(Redis Cache)]
-    C <--> F[(Redis Queue)]
-    B <-.-> C
-    C --> G[Worker 1]
-    C --> H[Worker 2]
-    C --> I[Worker N]
-```
+- **Service Discovery**: Manages dynamic registration and discovery of services, enabling the API Gateway to find available instances of services.
 
-V2
-```mermaid
-flowchart TD
- subgraph subGraph0["Task Management Replicas"]
-        E["Task Management Service"]
-        E2["Task Management Service"]
-        E3["Task Management Service"]
-  end
- subgraph subGraph1["Task Execution Replicas"]
-        F["Task Execution Service"]
-        F2["Task Execution Service"]
-        F3["Task Execution Service"]
-  end
-    A["Actor"] -- REST, WebSocket --> B["API Gateway"]
-    A["Actor"] -- WebSocket --> F
+- **Task Management Service Cluster**: Consists of multiple instances (TMS1, TMS2, TMS3) for high availability and load balancing. They handle task creation, status updates, and result retrieval.
 
-    B -- publish --> C[("Redis")]
-    B <-- gRPC --> D["Service Discovery"]
-    B -- load balancer --> E & F
-    C -- message --> E
-    E <-- gRPC --> F
-    E --> G[("PSQL")]
-    F --> H[("Result DB")]
-     E:::service
-     E2:::service
-     E3:::service
-     F:::service
-     F2:::service
-     F3:::service
-     B:::gateway
-     C:::database
-     D:::service
-     G:::database
-     H:::database
-    classDef service stroke:#333,stroke-width:2px
-    classDef database stroke:#333,stroke-width:2px
-    classDef gateway stroke:#333,stroke-width:4px
-```
+- **Task Execution Service Cluster**: Contains multiple instances (TES1, TES2, TES3) that process tasks from the Redis Cluster and update task statuses.
 
-Service boundaries:
-1. **Task Management Service**: Handles task submission, status updates, and result retrieval.
-2. **Task Execution Service**: Manages workers, distributes tasks, and processes results.
+- **Redis Cluster**: Comprises multiple nodes (Redis1, Redis2, Redis3) configured with consistent hashing and sharding for distributed caching and task queueing.
 
-## 3. Technology Stack and Communication Patterns
+- **Databases**:
+  - **Task Management Database**: Stores task metadata, with replication for high availability.
+  - **Task Execution Database**: Stores execution logs and results, with replication.
 
-### Task Management Service:
-- Language: Python
-- Framework: Flask
-- Database: PostgreSQL
-- Cache: Redis
-- Communication: RESTful APIs (synchronous)
+- **Logging & Monitoring**: Centralized logging and monitoring using ELK Stack, Prometheus, and Grafana.
 
-### Task Execution Service:
-- Language: Node.js
-- Framework: Express.js with Socket.IO
-- Queue: Redis
-- Communication:
-  - RESTful APIs (synchronous) for worker management
-  - WebSockets (real-time) for task status updates
-  - Redis queue (asynchronous) for task distribution
+- **Data Warehouse**: Data from the databases is periodically extracted, transformed, and loaded into Amazon Redshift for analytical purposes.
 
-### Containerization and Orchestration:
-- Technology: Docker and Docker Compose
-- Purpose: Containerization and orchestration of services
+---
 
-Docker Compose will be used to define and manage our multi-container Docker application. This approach offers several benefits for scalability:
+### Distributed Task Queue System
 
-1. **Service Definition**: Each component (Task Management Service, Task Execution Service, PostgreSQL, Redis) will be defined as a service in a `docker-compose.yml` file. This allows for easy configuration and deployment of the entire stack.
+This document provides an overview of the Distributed Task Queue System, including its architecture, components, endpoints, and instructions on how to run and deploy the application.
 
-2. **Easy Scaling**: Docker Compose allows for easy scaling of services using the `--scale` option. For example:
+### Table of Contents
 
-3. **Network Isolation**: Docker Compose creates a default network for the application, ensuring services can communicate securely while remaining isolated from the host network.
+- [Introduction](#introduction)
+- [System Architecture](#system-architecture)
+- [Components](#components)
+- [Endpoints Documentation](#endpoints-documentation)
+- [Running and Deployment Instructions](#running-and-deployment-instructions)
+- [Additional Information](#additional-information)
 
-4. **Volume Management**: Persistent data (for PostgreSQL and Redis) can be managed using named volumes, ensuring data persistence across container restarts and updates.
+---
 
-5. **Environment Configuration**: Environment variables can be easily managed for each service, allowing for configuration changes without modifying the container images.
+### Introduction
 
-6. **Load Balancing**: When scaling services, Docker Compose can work in conjunction with a reverse proxy (e.g., Nginx or Traefik) to distribute incoming requests across multiple container instances.
+The Distributed Task Queue System is designed using a microservices architecture to facilitate the submission, execution, and monitoring of various tasks. The system is scalable, fault-tolerant, and includes features such as high availability, distributed transactions, consistent hashing for caching, and data analytics.
 
-7. **Rolling Updates**: Docker Compose facilitates rolling updates, allowing for zero-downtime deployments when updating services.
+### System Architecture
 
-This containerized approach provides a foundation for further scalability options, such as transitioning to Kubernetes for more advanced orchestration and scaling capabilities as the system grows.
+The system comprises several microservices and components:
 
-## 4. Data Management
+- **API Gateway**: Entry point for clients, handling requests, authentication, routing, and implementing a Circuit Breaker.
+- **Load Balancer (Nginx)**: Distributes incoming requests among API Gateway instances.
+- **Service Discovery**: Manages dynamic service registration and discovery.
+- **Task Management Service Cluster**: Handles task creation, status updates, and result retrieval.
+- **Task Execution Service Cluster**: Processes tasks from a queue and updates their status.
+- **Redis Cluster**: Acts as a distributed task queue and caching layer.
+- **Databases**: PostgreSQL clusters for both Task Management and Task Execution services, with replication.
+- **Logging and Monitoring**: Aggregates logs and metrics using ELK Stack and Prometheus with Grafana.
+- **Data Warehouse**: Periodically updated with data from databases for analytics.
+- **Circuit Breaker**: Implemented within the API Gateway to prevent cascading failures.
 
-### Task Management Service Endpoints:
+### Components
 
-1. POST /api/tasks
-   - Input:
+#### 1. API Gateway
+
+- **Technology**: NestJS (Node.js)
+- **Responsibilities**:
+  - Serves as the entry point for client requests.
+  - Implements authentication and authorization.
+  - Routes requests to appropriate services using Service Discovery.
+  - Incorporates a Circuit Breaker to prevent cascading failures.
+
+#### 2. Load Balancer (Nginx)
+
+- **Responsibilities**:
+  - Distributes incoming client requests among multiple API Gateway instances.
+  - Ensures high availability and load balancing.
+
+#### 3. Service Discovery
+
+- **Technology**: Custom Implementation (e.g., etcd, Consul)
+- **Responsibilities**:
+  - Maintains a registry of service instances.
+  - Provides dynamic service discovery for the API Gateway and other services.
+
+#### 4. Task Management Service
+
+- **Technology**: Python Flask
+- **Responsibilities**:
+  - Handles task creation, status updates, and result retrieval.
+  - Stores task data in the PostgreSQL cluster.
+  - Enqueues tasks into the Redis Cluster for processing.
+
+#### 5. Task Execution Service
+
+- **Technology**: Python gRPC
+- **Responsibilities**:
+  - Dequeues tasks from the Redis Cluster.
+  - Executes tasks based on their type.
+  - Updates task status and results in the Task Management Service.
+
+#### 6. Redis Cluster
+
+- **Technology**: Redis with Consistent Hashing
+- **Responsibilities**:
+  - Acts as a distributed task queue and caching layer.
+  - Implements consistent hashing for even load distribution and high availability.
+
+#### 7. Databases
+
+- **Technology**: PostgreSQL with Replication
+- **Components**:
+  - **Task Management Database**: Stores task metadata.
+  - **Task Execution Database**: Stores execution logs and results.
+
+#### 8. Logging & Monitoring
+
+- **Technology**: ELK Stack, Prometheus, Grafana
+- **Responsibilities**:
+  - Aggregates logs from all services.
+  - Monitors metrics and system performance.
+  - Provides dashboards and alerting mechanisms.
+
+#### 9. Data Warehouse
+
+- **Technology**: Amazon Redshift, Apache NiFi
+- **Responsibilities**:
+  - Aggregates data from databases for analytics.
+  - Updated via periodic ETL processes.
+
+---
+### Enhancements Overview
+
+The system incorporates several enhancements to meet specific requirements, referred to as Marks 1-9. Below are the detailed implementations of each mark:
+
+#### Mark 1: Circuit Breaker
+
+- **Description**: Implement a Circuit Breaker to prevent cascading failures by stopping requests to a failing service after multiple failed attempts.
+- **Implementation**:
+  - Integrated using the `resilience4j` library within the API Gateway.
+  - Monitors the number of failed requests to downstream services.
+  - Trips the circuit after a predefined threshold of failures, redirecting traffic away from the failing service.
+- **Functionality**:
+  - Enhances system resilience by isolating failing services.
+  - Provides fallback responses to clients during service downtimes.
+
+#### Mark 2: Service High Availability
+
+- **Description**: Ensure high availability of services by deploying multiple replicas and implementing load balancing.
+- **Implementation**:
+  - Deployed multiple replicas of each microservice using Docker Compose's `deploy` and `replicas` options.
+  - Utilized Nginx as a Load Balancer to distribute incoming requests among service instances.
+  - Implemented health checks to monitor service instance health and automatically remove unhealthy instances from the load balancer.
+- **Features**:
+  - **Load Balancing**: Nginx balances the load, preventing any single instance from becoming a bottleneck.
+  - **Fault Tolerance**: Automatically handles the failure of service instances without impacting overall system availability.
+
+#### Mark 3: Logging and Monitoring
+
+- **Description**: Implement centralized logging and monitoring to aggregate data from all services.
+- **Implementation**:
+  - **Logging**: Deployed the ELK Stack (Elasticsearch, Logstash, Kibana) to collect and aggregate logs from all services.
+  - **Monitoring**: Utilized Prometheus to collect metrics and Grafana to visualize them through dashboards.
+- **Functionality**:
+  - **Centralized Logging**: Aggregates logs for easier debugging and analysis.
+  - **Real-Time Monitoring**: Tracks system performance and resource utilization, enabling proactive issue detection.
+  - **Alerting**: Configured alerts for anomalous metrics to notify the team of potential issues.
+
+#### Mark 4: Distributed Transactions with Two-Phase Commit
+
+- **Description**: Implement microservice-based Two-Phase Commit (2PC) transactions to ensure atomicity across multiple databases.
+- **Implementation**:
+  - Created a new endpoint (`POST /tasks/commit`) that initiates a distributed transaction involving both the Task Management and Task Execution databases.
+  - Utilized a coordinator service within the Task Management Service to manage the 2PC protocol.
+  - Ensured that both databases either commit or rollback changes to maintain consistency.
+- **Functionality**:
+  - Guarantees that operations affecting multiple services are completed successfully and consistently.
+  - Prevents partial updates that could lead to data inconsistency.
+
+#### Mark 5: Consistent Hashing for Cache
+
+- **Description**: Implement consistent hashing in the Redis Cluster to evenly distribute cache keys and minimize cache misses.
+- **Implementation**:
+  - Configured Redis Cluster nodes with consistent hashing algorithms.
+  - Ensured that when nodes are added or removed, only a minimal number of keys are redistributed.
+- **Benefits**:
+  - Enhances performance by ensuring an even distribution of cache load.
+  - Reduces the impact of node changes on cache availability and consistency.
+
+#### Mark 6: Cache High Availability
+
+- **Description**: Ensure high availability of the cache layer by configuring Redis Cluster with replication and failover mechanisms.
+- **Implementation**:
+  - Configured Redis Cluster with multiple replicas for each primary node.
+  - Enabled automatic failover using Redis Sentinel to monitor and promote replicas in case of primary node failures.
+- **Features**:
+  - **Replication**: Maintains multiple copies of cache data to prevent data loss.
+  - **Automatic Failover**: Quickly recovers from node failures without manual intervention, maintaining cache availability.
+
+#### Mark 7: Long-Running Saga Transactions
+
+- **Description**: Implement long-running saga transactions with a coordinator to handle distributed operations without relying on Two-Phase Commit.
+- **Implementation**:
+  - Developed a Saga Coordinator service that manages the sequence of transactions across microservices.
+  - Defined compensating actions to rollback changes in case of failures during the saga.
+  - Created endpoints that initiate saga transactions for complex operations.
+- **Functionality**:
+  - Manages distributed transactions without the complexity and locking issues of 2PC.
+  - Enhances system scalability and reliability by handling failures gracefully through compensating actions.
+
+#### Mark 8: Database Redundancy and Replication
+
+- **Description**: Implement database redundancy and replication to ensure data availability and reliability.
+- **Implementation**:
+  - Configured PostgreSQL clusters with at least three replicas for both Task Management and Task Execution databases.
+  - Utilized streaming replication to maintain real-time data consistency across replicas.
+  - Implemented automated failover using tools like Patroni to promote replicas in case of primary node failures.
+- **Features**:
+  - **Data Redundancy**: Multiple replicas prevent data loss and ensure high availability.
+  - **Failover**: Automated mechanisms quickly switch to replicas during failures, minimizing downtime.
+
+#### Mark 9: Data Warehouse Integration
+
+- **Description**: Create a Data Warehouse that aggregates data from all databases for analytical purposes.
+- **Implementation**:
+  - Established a Data Warehouse using Amazon Redshift.
+  - Developed ETL (Extract, Transform, Load) processes using Apache NiFi to periodically extract data from PostgreSQL databases, transform it as needed, and load it into the Data Warehouse.
+  - Scheduled ETL jobs to run at regular intervals to keep the Data Warehouse updated.
+- **Functionality**:
+  - Consolidates data from multiple sources for comprehensive analytics and reporting.
+  - Enables complex queries and data analysis without impacting operational databases.
+
+---
+
+### Endpoints Documentation
+
+#### API Gateway Endpoints
+
+1. **Create Task**
+
+   - **Endpoint**: `POST /tasks`
+   - **Description**: Creates a new task.
+   - **Request Body**:
+
      ```json
      {
-       "type": "string",
-       "data": "json"
+       "description": "Count words",
+       "task_type": "word_count",
+       "payload": "word1 word2 word3"
      }
      ```
-   - Output:
+
+   - **Response**:
+
      ```json
      {
-       "task_id": "integer"
+       "id": 1,
+       "status": "pending",
+       "task_type": "word_count"
      }
      ```
 
-   Example task types:
-   - Text processing: word_count, sentiment_analysis, text_summarization
-   - Image processing: image_resize, apply_filter
-   - Data analysis: calculate_statistics, find_patterns
-   - External API interaction: weather_data, currency_conversion
-   - Simulated long-running tasks: simulate_backup, large_file_processing
+2. **Get Task by ID**
 
-2. GET /api/tasks/{id}
-   - Input: None
-   - Output:
+   - **Endpoint**: `GET /tasks/{id}`
+   - **Description**: Retrieves task details by ID.
+   - **Response**:
+
      ```json
      {
-       "id": "integer",
-       "type": "string",
-       "status": "string",
-       "result": "json"
+       "id": 1,
+       "description": "Count words",
+       "task_type": "word_count",
+       "status": "completed",
+       "payload": "word1 word2 word3",
+       "result": "{\"word_count\": 3}",
+       "start_time": "2021-10-01T12:00:00Z",
+       "end_time": "2021-10-01T12:00:05Z"
      }
      ```
 
-3. GET /api/tasks
-   - Input: None
-   - Output:
+3. **List Tasks**
+
+   - **Endpoint**: `GET /tasks`
+   - **Description**: Retrieves a list of tasks with pagination support.
+   - **Query Parameters**:
+     - `page_number` (optional, default: 1)
+     - `page_size` (optional, default: 10)
+   - **Response**:
+
      ```json
      [
        {
-         "id": "integer",
-         "type": "string",
-         "status": "string"
-       }
+         "id": 1,
+         "description": "Count words",
+         "task_type": "word_count",
+         "status": "completed",
+         "payload": "word1 word2 word3",
+         "result": "{\"word_count\": 3}",
+         "start_time": "2021-10-01T12:00:00Z",
+         "end_time": "2021-10-01T12:00:05Z"
+       },
+       // More tasks...
      ]
      ```
 
-4. DELETE /api/tasks/{id}
-   - Input: None
-   - Output:
+4. **Delete Task**
+
+   - **Endpoint**: `DELETE /tasks/{id}`
+   - **Description**: Deletes a task by ID.
+   - **Response**:
+
      ```json
      {
-       "message": "string"
+       "message": "Task deleted"
      }
      ```
 
-### Task Execution Service Endpoints:
+5. **Start Task Execution**
 
-1. WebSocket: /socket.io/{task-type}
-   - Event: 'task_update'
-   - Data:
+   - **Endpoint**: `POST /tasks/{id}/execute`
+   - **Description**: Starts the execution of a task.
+   - **Response**:
+
      ```json
      {
-       "id": "integer",
-       "status": "string",
-       "result": "json"
+       "taskId": 1,
+       "status": "completed",
+       "result": "{\"word_count\": 3}"
      }
      ```
 
-2. GET /api/workers
-   - Input: None
-   - Output:
-     ```json
-     [
-       {
-         "id": "string",
-         "startTime": "datetime"
-       }
-     ]
-     ```
+---
 
-3. POST /api/workers
-   - Input: None
-   - Output:
-     ```json
-     {
-       "workerId": "string"
-     }
-     ```
+### Running and Deployment Instructions
 
-4. DELETE /api/workers/{id}
-   - Input: None
-   - Output:
-     ```json
-     {
-       "message": "string"
-     }
-     ```
+#### Prerequisites
 
-Data Management Strategy:
-- Task Management Service uses PostgreSQL for persistent storage of tasks.
-- Redis is used for caching task details and as a distributed queue.
-- Task Execution Service uses in-memory storage (Map) for worker information.
-- Tasks are stored in Redis queue for distribution to workers.
+- **Docker**: Ensure Docker is installed on your system.
+- **Docker Compose**: Required to orchestrate the multi-container application.
 
-## 5. Worker Implementation
+#### Starting the Application
 
-Workers in this system are not traditional threads, but rather long-running processes within the Task Execution Service:
+1. **Clone the Repository**
 
-1. **Independent Execution Units**: Each worker operates independently, pulling tasks from the shared Redis queue.
-2. **Asynchronous Processing**: Workers use Node.js's event loop and async/await for non-blocking task processing.
-3. **Scalability**: Multiple workers can run concurrently, each in its own process, potentially on different machines.
+   ```bash
+   git clone https://github.com/CaraAlexandr/PAD_Labs
+   cd PAD_Labs
+   ```
 
-Worker implementation:
+2. **Build and Start Services**
 
-```javascript
-async function taskWorker(workerId) {
-    while (workers.has(workerId)) {
-        const taskJson = await redis.brpop('task_queue', 0);
-        const task = JSON.parse(taskJson[1]);
+   Run the following command to build and start all services in detached mode:
 
-        console.log(`Worker ${workerId} processing task: ${task.id}`);
+   ```bash
+   docker-compose up --build -d
+   ```
 
-        io.emit('task_update', { id: task.id, status: 'processing' });
+   This command will:
 
-        const result = await processTask(task);
+   - Build Docker images for all services defined in `docker-compose.yml`.
+   - Start the containers in the background (`-d` flag).
+   - Download any necessary images and dependencies.
 
-        await redis.hset(`task:${task.id}`, 'status', 'completed', 'result', JSON.stringify(result));
+3. **Verify Services are Running**
 
-        io.emit('task_update', { id: task.id, status: 'completed', result });
-    }
-}
+   You can check the status of the containers using:
+
+   ```bash
+   docker-compose ps
+   ```
+
+   Ensure that all services are listed and have a status of `Up`.
+
+4. **Access the API Gateway**
+
+   The API Gateway should be accessible at `http://localhost:8002`.
+
+   You can test the status endpoint:
+
+   ```bash
+   curl http://localhost:8002/status
+   ```
+
+   Expected response:
+
+   ```json
+   {
+     "status": "Gateway is running"
+   }
+   ```
+
+#### Stopping the Application
+
+To stop all running containers, use:
+
+```bash
+docker-compose down
 ```
 
-This implementation allows for handling various task types, from quick text processing to long-running simulations, demonstrating the system's flexibility.
+---
 
-## 6. Deployment and Scaling 
+### Additional Information
 
-- **Containerization**: Both services will be containerized using Docker for consistent deployment across environments.
-- **Orchestration**: Kubernetes will be used for orchestrating the containers, allowing for easy scaling and management.
-- **Scaling Strategy**:
-  - Task Management Service: Horizontal scaling based on incoming request load.
-  - Task Execution Service: Scaling based on queue length and worker capacity. The number of workers can be dynamically adjusted based on the workload.
-- **Load Balancing**: Kubernetes Ingress or a dedicated load balancer (e.g., Nginx) will distribute incoming requests across service instances.
-- **Worker Distribution**: Workers can be distributed across multiple nodes in a Kubernetes cluster, allowing for efficient resource utilization and fault tolerance.
+- **Logging and Monitoring**: Access dashboards for ELK Stack and Grafana if they are exposed on specific ports (configure as needed in `docker-compose.yml`).
+- **Scaling Services**: You can scale services by adjusting the `deploy: replicas` option in `docker-compose.yml` for each service.
+- **Configuration Files**: Customize configurations in the respective service directories, such as environment variables, database settings, and more.
+- **Data Persistence**: Ensure volumes are configured in `docker-compose.yml` to persist data for databases and other stateful services.
 
-This updated overview incorporates the specific task types and worker implementation details, providing a more comprehensive picture of the distributed task queue system.
+---
+
+**Note**: This README provides a high-level overview and basic instructions to get started with the Distributed Task Queue System. For detailed information, please refer to the documentation in each service's directory or contact the project maintainers.
