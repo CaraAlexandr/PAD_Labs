@@ -1,18 +1,31 @@
 import { Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
 
 @Injectable()
 export class ServiceRegistry {
-  private services = new Map<string, any>();
+  private readonly redis: Redis.Redis;
 
-  registerService(name: string, info: any) {
-    this.services.set(name, info);
+  constructor() {
+    this.redis = new Redis({ host: 'redis_pad', port: 6379 });
   }
 
-  getService(name: string): any {
-    return this.services.get(name);
+  // Register a service with a specific name and URL
+  async registerService(serviceName: string, serviceUrl: string) {
+    await this.redis.hset('services', serviceName, serviceUrl);
   }
 
-  getAllServices(): any[] {
-    return Array.from(this.services.values());
+  // Lookup a service by name
+  async lookupService(serviceName: string): Promise<string | null> {
+    return await this.redis.hget('services', serviceName);
+  }
+
+  // Deregister a service by name
+  async deregisterService(serviceName: string) {
+    await this.redis.hdel('services', serviceName);
+  }
+
+  // List all registered services
+  async listServices(): Promise<{ [key: string]: string }> {
+    return await this.redis.hgetall('services');
   }
 }

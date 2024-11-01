@@ -1,8 +1,11 @@
 import { Module, CacheModule } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AppController } from './app.controller';
-import { join } from 'path'; // Import path utility to manage proto paths
+import { GatewayService } from './gateway.service'; // Import GatewayService
+import { join } from 'path';
 import * as redisStore from 'cache-manager-ioredis';
+import { TimeoutInterceptor } from './timeout.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -21,7 +24,7 @@ import * as redisStore from 'cache-manager-ioredis';
         options: {
           package: 'task_management',
           protoPath: join(__dirname, '../proto/task_management.proto'),
-          url: 'task_management_service:8000',
+          url: 'task_management_service:50051',
         },
       },
       {
@@ -30,11 +33,18 @@ import * as redisStore from 'cache-manager-ioredis';
         options: {
           package: 'task_execution',
           protoPath: join(__dirname, '../proto/task_execution.proto'),
-          url: 'task_execution_service:8001',
+          url: 'task_execution_service:50052',
         },
       },
     ]),
   ],
   controllers: [AppController],
+  providers: [
+    GatewayService, // Ensure GatewayService is registered
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TimeoutInterceptor,
+    },
+  ],
 })
 export class AppModule {}

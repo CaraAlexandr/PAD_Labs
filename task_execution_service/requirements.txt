@@ -6,3 +6,6 @@ psycopg2-binary
 grpcio
 grpcio-tools
 redis
+eventlet
+requests
+numpy

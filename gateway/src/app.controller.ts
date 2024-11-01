@@ -1,50 +1,86 @@
-import { Controller, Post, Body, Get, Param, OnModuleInit, Inject } from '@nestjs/common';
-import { ClientGrpc } from '@nestjs/microservices';
-import { Observable } from 'rxjs';
-
-interface TaskManagementService {
-  createTask(data: { description: string, task_type: string }): Observable<any>;
-  getTaskById(data: { id: number }): Observable<any>;
-  listTasks(data: { page_number: number, page_size: number }): Observable<any>;
-}
-
-interface TaskExecutionService {
-  startTask(data: { task_id: number }): Observable<any>;
-  getTaskStatus(data: { task_id: number }): Observable<any>;
-}
+//gateway/app.controller.ts
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  OnModuleInit,
+  Inject,
+  ParseIntPipe,
+  Logger,
+} from '@nestjs/common';
+import { GatewayService } from './gateway.service';
 
 @Controller()
-export class AppController implements OnModuleInit {
-  private taskManagementService: TaskManagementService;
-  private taskExecutionService: TaskExecutionService;
+export class AppController {
+  private readonly logger = new Logger(AppController.name);
 
-  constructor(
-    @Inject('TASK_MANAGEMENT_PACKAGE') private readonly taskManagementClient: ClientGrpc,
-    @Inject('TASK_EXECUTION_PACKAGE') private readonly taskExecutionClient: ClientGrpc,
-  ) {}
-
-  onModuleInit() {
-    this.taskManagementService = this.taskManagementClient.getService<TaskManagementService>('TaskManagementService');
-    this.taskExecutionService = this.taskExecutionClient.getService<TaskExecutionService>('TaskExecutionService');
-  }
+  constructor(private readonly gatewayService: GatewayService) {}
 
   @Post('/tasks')
-  createTask(@Body() body) {
-    return this.taskManagementService.createTask(body);
+  async createTask(@Body() body) {
+    this.logger.log(`Creating task with data: ${JSON.stringify(body)}`);
+    try {
+      const response = await this.gatewayService.createTask(body);
+      this.logger.log(`Task created with ID: ${response.id}`);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error creating task: ${error.message}`);
+      throw error;
+    }
   }
 
   @Get('/tasks/:id')
-  getTaskById(@Param('id') id: number) {
-    return this.taskManagementService.getTaskById({ id });
+  async getTaskById(@Param('id', ParseIntPipe) id: number) {
+    this.logger.log(`Fetching task with ID: ${id}`);
+    try {
+      const response = await this.gatewayService.getTaskById(id);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error fetching task: ${error.message}`);
+      throw error;
+    }
   }
 
   @Post('/tasks/:id/execute')
-  startTask(@Param('id') id: number) {
-    return this.taskExecutionService.startTask({ task_id: id });
+  async startTask(@Param('id', ParseIntPipe) id: number) {
+    this.logger.log(`Starting task with ID: ${id}`);
+    try {
+      const response = await this.gatewayService.startTask(id);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error starting task: ${error.message}`);
+      throw error;
+    }
   }
 
   @Get('/tasks/:id/status')
-  getTaskStatus(@Param('id') id: number) {
-    return this.taskExecutionService.getTaskStatus({ task_id: id });
+  async getTaskStatus(@Param('id', ParseIntPipe) id: number) {
+    this.logger.log(`Getting status for task ID: ${id}`);
+    try {
+      const response = await this.gatewayService.getTaskStatus(id);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error getting task status: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Get('/tasks')
+  async listTasks(@Body() body) {
+    this.logger.log(`Listing tasks with parameters: ${JSON.stringify(body)}`);
+    try {
+      const response = await this.gatewayService.listTasks(body);
+      return response;
+    } catch (error) {
+      this.logger.error(`Error listing tasks: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Get('/status')
+  getStatus(): string {
+    return 'Gateway is running';
   }
 }

@@ -1,61 +1,14 @@
 version: '3.8'
 
 services:
-  # Task Management Service
-  task_management_service:
-    build: ./task_management_service
-    ports:
-      - "8000:5000"    # HTTP port (if needed)
-      - "50051:50051"  # gRPC port for task management
-    depends_on:
-      - redis_pad
-      - db_task_management
-    environment:
-      - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
-    networks:
-      - backend
-
-  # Task Execution Service
-  task_execution_service:
-    build: ./task_execution_service
-    ports:
-      - "8001:5000"    # HTTP port (if needed)
-      - "50052:50052"  # gRPC port for task execution
-    depends_on:
-      - redis_pad
-      - db_task_execution
-    environment:
-      - DATABASE_URL=postgresql://user:password@db_task_execution:5432/task_execution_db
-    networks:
-      - backend
-
-  # Gateway Service
-  gateway_pad:
-    build: ./gateway
-    ports:
-      - "8002:3000"    # Gateway HTTP port
-    depends_on:
-      - task_management_service
-      - task_execution_service
-      - redis_pad
-    networks:
-      - backend
-
-  # Service Discovery
-  service_discovery:
-    build: ./service_discovery
-    ports:
-      - "8003:3000"    # Service Discovery port
-    networks:
-      - backend
-
-  # Redis
+  # Redis Service
   redis_pad:
     image: redis:alpine
     ports:
-      - "6379:6379"  # Redis port
+      - "6379:6379"
     networks:
       - backend
+    restart: unless-stopped
 
   # PostgreSQL for Task Management
   db_task_management:
@@ -65,9 +18,10 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: task_management_db
     ports:
-      - "5432:5432"  # PostgreSQL for task management
+      - "5432:5432"
     networks:
       - backend
+    restart: unless-stopped
 
   # PostgreSQL for Task Execution
   db_task_execution:
@@ -77,9 +31,99 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: task_execution_db
     ports:
-      - "5433:5432"  # PostgreSQL for task execution
+      - "5433:5432"
     networks:
       - backend
+    restart: unless-stopped
+
+  # Task Management Service
+  task_management_service:
+    build:
+      context: ./task_management_service
+      dockerfile: Dockerfile
+    ports:
+      - "5000"    # Flask HTTP
+      - "50051"  # gRPC
+    depends_on:
+      - redis_pad
+      - db_task_management
+    environment:
+      - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
+    networks:
+      - backend
+#    restart: unless-stopped
+    deploy:
+      replicas: 3
+
+  # Task Execution Service
+  task_execution_service:
+    build:
+      context: ./task_execution_service
+      dockerfile: Dockerfile
+    ports:
+      - "5001"    # Flask HTTP
+      - "50052"  # gRPC
+    depends_on:
+      - redis_pad
+      - db_task_execution
+      - task_management_service
+    environment:
+      - DATABASE_URL=postgresql://user:password@db_task_execution:5432/task_execution_db
+      - TASK_MANAGEMENT_URL=task_management_service:50051
+    networks:
+      - backend
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+
+  # NestJS Gateway Service
+  gateway_pad:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8002:3000"    # Gateway HTTP
+    depends_on:
+      - task_management_service
+      - task_execution_service
+      - redis_pad
+      - db_task_management
+      - db_task_execution
+    environment:
+      - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
+      - TASK_MANAGEMENT_URL=task_management_service:50051
+      - TASK_EXECUTION_URL=task_execution_service:50052
+    networks:
+      - backend
+    restart: unless-stopped
+
+  # Service Discovery
+  service_discovery:
+    build:
+      context: ./service_discovery
+      dockerfile: Dockerfile
+    ports:
+      - "8003:3000"    # Service Discovery HTTP
+    depends_on:
+      - redis_pad
+    networks:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - task_management_service
+      - task_execution_service
+    networks:
+      - backend
+    restart: unless-stopped
+
 
 networks:
   backend:
+    driver: bridge
