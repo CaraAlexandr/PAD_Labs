@@ -414,5 +414,3 @@ docker-compose down
 - **Data Persistence**: Ensure volumes are configured in `docker-compose.yml` to persist data for databases and other stateful services.
 
 ---
-
-**Note**: This README provides a high-level overview and basic instructions to get started with the Distributed Task Queue System. For detailed information, please refer to the documentation in each service's directory or contact the project maintainers.
