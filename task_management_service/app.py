@@ -1,42 +1,33 @@
-# task_management_service/app.py
-
-from flask import Flask
-from flask_migrate import Migrate
-import grpc
-from concurrent import futures
-from services import TaskManagementServicer
-import threading
-from extensions import db
 import logging
+from flask import Flask
+from extensions import db, migrate
+from routes import task_bp
+from config import Config
+from prometheus_flask_exporter import PrometheusMetrics
 
-import task_management_pb2_grpc  # Ensure this is correctly generated
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(Config)
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@db_task_management:5432/task_management_db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Recommended to disable
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-db.init_app(app)
-migrate = Migrate(app, db)
+    # Register Blueprints
+    app.register_blueprint(task_bp, url_prefix='/tasks')
 
-from routes import task_bp, status_bp
+    # Setup Logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info('Task Management Service started.')
 
-app.register_blueprint(task_bp)
-app.register_blueprint(status_bp)
+    # Initialize Prometheus Metrics
+    metrics = PrometheusMetrics(app)
+    # Optional: Customize metrics
+    metrics.info('app_info', 'Task Management Service Info', version='1.0.0')
 
-logging.basicConfig(level=logging.INFO)
-
-# gRPC server
-def serve_grpc(app):
-    with app.app_context():
-        server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        task_management_pb2_grpc.add_TaskManagementServiceServicer_to_server(TaskManagementServicer(app), server)
-        server.add_insecure_port('[::]:50051')
-        server.start()
-        logging.info("gRPC server for Task Management Service started on port 50051.")
-        server.wait_for_termination()
+    return app
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()  # Ensure tables are created
-        threading.Thread(target=serve_grpc, args=(app,), daemon=True).start()  # Start gRPC server in a thread
-        app.run(host='0.0.0.0', port=5000)  # Start Flask HTTP server on port 5000
+    app = create_app()
+    app.run(host='0.0.0.0', port=5000)
