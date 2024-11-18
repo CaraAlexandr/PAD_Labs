@@ -1,9 +1,11 @@
-from flask import Blueprint, request, jsonify, app
-from models import Task
-from extensions import db
-import redis
 import json
 import os
+
+import redis
+from flask import Blueprint, request, jsonify
+
+from extensions import db
+from models import Task
 
 task_bp = Blueprint('task_bp', __name__)
 

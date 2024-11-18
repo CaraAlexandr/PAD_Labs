@@ -1,14 +1,13 @@
 # task_execution/routes.py
 
-import os
-from flask import Blueprint, jsonify, request
-from extensions import db
-from models import Task
-import requests
 import json
-from tasks import execute_task  # Ensure this is correctly implemented
-
+import os
 from datetime import datetime
+
+import requests
+from flask import Blueprint, jsonify, request
+
+from tasks import execute_task  # Ensure this is correctly implemented
 
 manual_exec_bp = Blueprint('manual_exec_bp', __name__)
 execution_bp = Blueprint('execution_bp', __name__)

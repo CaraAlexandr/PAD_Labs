@@ -1,13 +1,15 @@
-import threading
-import redis
-import json
-import requests
-from time import sleep
-from models import WorkerModel
-from extensions import db
-from datetime import datetime
 import os
+import threading
+from datetime import datetime
+from time import sleep
+
+import redis
+import requests
+
+from extensions import db
+from models import WorkerModel
 from tasks import execute_task
+
 
 class Worker(threading.Thread):
     def __init__(self, worker_id):

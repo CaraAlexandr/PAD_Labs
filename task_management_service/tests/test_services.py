@@ -1,9 +1,10 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 import task_management_pb2
-from services import TaskManagementServicer
 from app import app
 from models import Task
+from services import TaskManagementServicer
 
 
 class TestTaskManagementServicer(unittest.TestCase):

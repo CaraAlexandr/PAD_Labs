@@ -1,10 +1,13 @@
 import logging
+
 from flask import Flask
-from extensions import db, migrate
-from worker import WorkerManager
-from config import Config
 from prometheus_flask_exporter import PrometheusMetrics
+
+from config import Config
+from extensions import db, migrate
 from routes import manual_exec_bp, execution_bp
+from worker import WorkerManager
+
 
 def create_app():
     app = Flask(__name__)
