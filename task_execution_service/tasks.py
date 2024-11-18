@@ -1,4 +1,6 @@
+#task_management_service\tasks.py
 import json
+import time
 
 def execute_task(task_type, payload):
     payload = json.loads(payload)
@@ -20,5 +22,8 @@ def execute_task(task_type, payload):
     elif task_type == 'sort_numbers':
         array = payload.get('array', [])
         return sorted(array)
+    elif task_type == 'test':
+        time.sleep(10)
+        return 'Test task executed'
     else:
         return 'Unknown task type'
