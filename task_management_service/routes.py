@@ -1,7 +1,8 @@
 import json
 import os
 
-import redis
+# import redis
+from rediscluster import RedisCluster
 from flask import Blueprint, request, jsonify
 
 from extensions import db
@@ -9,10 +10,15 @@ from models import Task
 
 task_bp = Blueprint('task_bp', __name__)
 
-# Redis configuration
-redis_host = os.environ.get('REDIS_HOST', 'redis_pad')
-redis_port = int(os.environ.get('REDIS_PORT', 6379))
-redis_queue = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
+# # Redis configuration
+# redis_host = os.environ.get('REDIS_HOST', 'redis_pad')
+# redis_port = int(os.environ.get('REDIS_PORT', 6379))
+# redis_queue = redis.StrictRedis(host=redis_host, port=redis_port, db=0)
+
+redis_nodes = os.environ.get('REDIS_CLUSTER_NODES', 'redis-node-1:7001,redis-node-2:7002,redis-node-3:7003')
+startup_nodes = [{"host": node.split(":")[0], "port": int(node.split(":")[1])} for node in redis_nodes.split(",")]
+redis_queue = RedisCluster(startup_nodes=startup_nodes, decode_responses=True, skip_full_coverage_check=True)
+queue_name = '{task_queue}'
 
 @task_bp.route('/', methods=['POST'])
 def create_task():

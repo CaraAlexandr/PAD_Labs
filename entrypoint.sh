@@ -5,12 +5,12 @@ sleep 10
 
 echo "Creating Redis cluster..."
 yes | redis-cli --cluster create \
-  172.32.1.1:7001 \
-  172.32.1.2:7002 \
-  172.32.1.3:7003 \
-  172.32.1.4:7004 \
-  172.32.1.5:7005 \
-  172.32.1.6:7006 \
-  --cluster-replicas 1
+  redis-node-1:7001 \
+  redis-node-2:7002 \
+  redis-node-3:7003 \
+  redis-node-4:7004 \
+  redis-node-5:7005 \
+  redis-node-6:7006 \
+  --cluster-replicas 1 \ --cluster-yes || echo "Failed to create Redis cluster. It might already be created."
 
-echo "Redis cluster created."
+echo "Redis cluster setup completed."
