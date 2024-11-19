@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 echo "Running unit tests..."
 pytest --maxfail=1 --disable-warnings

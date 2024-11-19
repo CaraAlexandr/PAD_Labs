@@ -1,12 +1,67 @@
-services:
-  redis_pad:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - backend
-    restart: unless-stopped
+version: '3'
 
+services:
+  # Redis Cluster Nodes
+  redis-node-1:
+    image: redis:6.0-alpine
+    command: redis-server --port 7001 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.1
+
+  redis-node-2:
+    image: redis:6.0-alpine
+    command: redis-server --port 7002 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.2
+
+  redis-node-3:
+    image: redis:6.0-alpine
+    command: redis-server --port 7003 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.3
+
+  redis-node-4:
+    image: redis:6.0-alpine
+    command: redis-server --port 7004 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.4
+
+  redis-node-5:
+    image: redis:6.0-alpine
+    command: redis-server --port 7005 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.5
+
+  redis-node-6:
+    image: redis:6.0-alpine
+    command: redis-server --port 7006 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.6
+
+  # Redis Cluster Setup
+  redis-cluster-setup:
+    image: redis:6.0-alpine
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    networks:
+      redis_cluster:
+        ipv4_address: 172.32.1.7
+
+  # Postgres Databases
   db_task_management:
     image: postgres:13-alpine
     environment:
@@ -31,40 +86,43 @@ services:
       - backend
     restart: unless-stopped
 
+  # Task Management Service
   task_management_service:
     build:
       context: ./task_management_service
       dockerfile: Dockerfile
     depends_on:
-      - redis_pad
       - db_task_management
+      - redis-cluster-setup
     environment:
-      - DATABASE_URL=postgresql://user:password@db_task_management:5432/task_management_db
-      - REDIS_HOST=redis_pad
-      - REDIS_PORT=6379
+      DATABASE_URL: postgresql://user:password@db_task_management:5432/task_management_db
+      REDIS_CLUSTER_NODES: redis-node-1:7001,redis-node-2:7002,redis-node-3:7003
     networks:
       - backend
+      - redis_cluster
     deploy:
       replicas: 3
 
+  # Task Execution Service
   task_execution_service:
     build:
       context: ./task_execution_service
       dockerfile: Dockerfile
     depends_on:
-      - redis_pad
       - db_task_execution
       - task_management_service
+      - redis-cluster-setup
     environment:
-      - DATABASE_URL=postgresql://user:password@db_task_execution:5432/task_execution_db
-      - TASK_MANAGEMENT_URL=http://task_management_service:5000/tasks
-      - REDIS_HOST=redis_pad
-      - REDIS_PORT=6379
+      DATABASE_URL: postgresql://user:password@db_task_execution:5432/task_execution_db
+      TASK_MANAGEMENT_URL: http://task_management_service:5000/tasks
+      REDIS_CLUSTER_NODES: redis-node-1:7001,redis-node-2:7002,redis-node-3:7003
     networks:
       - backend
+      - redis_cluster
     deploy:
       replicas: 3
 
+  # Gateway Service
   gateway_pad:
     build:
       context: ./gateway
@@ -75,12 +133,13 @@ services:
       - task_management_service
       - task_execution_service
     environment:
-      - TASK_MANAGEMENT_URL=http://task_management_service:5000/tasks
-      - TASK_EXECUTION_URL=http://task_execution_service:5001/
+      TASK_MANAGEMENT_URL: http://task_management_service:5000/tasks
+      TASK_EXECUTION_URL: http://task_execution_service:5001/
     networks:
       - backend
     restart: unless-stopped
 
+  # Monitoring Services
   prometheus:
     image: prom/prometheus
     volumes:
@@ -97,6 +156,7 @@ services:
     networks:
       - backend
 
+  # Nginx Service
   nginx:
     image: nginx:alpine
     ports:
@@ -112,3 +172,9 @@ services:
 networks:
   backend:
     driver: bridge
+  redis_cluster:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.32.0.0/16

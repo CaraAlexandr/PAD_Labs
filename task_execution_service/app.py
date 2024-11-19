@@ -1,38 +1,25 @@
 import logging
-
 from flask import Flask
-from prometheus_flask_exporter import PrometheusMetrics
-
-from config import Config
 from extensions import db, migrate
+from config import Config
+from prometheus_flask_exporter import PrometheusMetrics
 from routes import manual_exec_bp, execution_bp
-from worker import WorkerManager
-
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # Register Blueprints
     app.register_blueprint(manual_exec_bp, url_prefix='/execute')
     app.register_blueprint(execution_bp)
 
-    # Start workers
-    worker_manager = WorkerManager()
-    worker_manager.start_workers()
-
-    # Setup Logging
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.info('Task Execution Service started.')
 
-    # Initialize Prometheus Metrics
     metrics = PrometheusMetrics(app)
-    # Optional: Customize metrics
     metrics.info('app_info', 'Task Execution Service Info', version='1.0.0')
 
     return app
