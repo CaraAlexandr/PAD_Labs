@@ -46,6 +46,8 @@ services:
       - backend
     deploy:
       replicas: 3
+    ports:
+      - "5000"  # Expose port for monitoring
 
   task_execution_service:
     build:
@@ -64,6 +66,8 @@ services:
       - backend
     deploy:
       replicas: 3
+    ports:
+      - "5001"  # Expose port for monitoring
 
   gateway_pad:
     build:
@@ -71,12 +75,13 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8002:3000"
-    depends_on:
-      - task_management_service
-      - task_execution_service
+#    depends_on:
+#      - task_management_service
+#      - task_execution_service
     environment:
       - TASK_MANAGEMENT_URL=http://task_management_service:5000/tasks
       - TASK_EXECUTION_URL=http://task_execution_service:5001/
+      - TASK_EXECUTION_URLS=http://task_execution_service:5001/,http://task_execution_service:5001/,http://task_execution_service:5001/
     networks:
       - backend
     restart: unless-stopped
@@ -102,12 +107,14 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./default.conf:/etc/nginx/default.conf
+      - ./logs/nginx:/var/log/nginx  # Mount logs to a local directory
     depends_on:
       - gateway_pad
     networks:
       - backend
     restart: unless-stopped
+
 
 networks:
   backend:
