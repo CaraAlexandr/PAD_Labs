@@ -1,4 +1,5 @@
 # workers.py
+
 import threading
 from rediscluster import RedisCluster
 import json
@@ -149,7 +150,9 @@ class Worker(threading.Thread):
 
             # PHASE 2: EXECUTE the task
             self.logger.info(f"Executing task {task_id}...")
-            result = execute_task(task_data['task_type'], task_data['payload'])
+            # Ensure payload is serialized as a JSON string if required
+            payload_serialized = json.dumps(task_data['payload'])
+            result = execute_task(task_data['task_type'], payload_serialized)
             self.logger.info(f"Task {task_id} executed successfully with result: {result}")
 
             # PHASE 3: COMMIT (Set task to completed)
