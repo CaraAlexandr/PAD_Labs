@@ -1,65 +1,59 @@
-import { Controller, Post, Param, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Param, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import axios from 'axios';
 import CircuitBreaker = require('opossum');
 
 @Controller('execute_task')
 export class ExecutionController {
-  private readonly executionServiceUrl =
-    process.env.TASK_EXECUTION_URL || 'http://task_execution_service:5001';
-
-  private readonly breaker;
+  private readonly executionServiceUrls: string[];
+  private readonly logger = new Logger(ExecutionController.name);
+  private readonly maxRetries = parseInt(process.env.MAX_RETRIES, 10) || 3;
+  private readonly maxReroutes = parseInt(process.env.MAX_REROUTES, 10) || 2;
+  private circuitBreakerOptions = {
+    timeout: 60000,
+    errorThresholdPercentage: 50,
+    resetTimeout: 10000,
+    rollingCountBuckets: 10,
+    rollingCountTimeout: 10000,
+  };
+  private breaker;
 
   constructor() {
-    const options = {
-      timeout: 15000, // Adjusted timeout to accommodate retries
-      errorThresholdPercentage: 50, // When 50% of requests fail, trip the circuit
-      resetTimeout: 30000, // After 30 seconds, try again
-    };
+    this.executionServiceUrls = process.env.TASK_EXECUTION_URLS
+      ? process.env.TASK_EXECUTION_URLS.split(',')
+      : ['http://task_execution_service:5001'];
 
-    // Function to be wrapped by the circuit breaker, including retries
-    const axiosPostWithRetries = async (taskId) => {
-      const maxRetries = parseInt(process.env.MAX_RETRIES) || 3; // Default to 3 retries
-      let attempt = 0;
-      let lastError;
+    this.breaker = new CircuitBreaker(
+      async (taskId: number) => {
+        return this.executeWithReroutesAndRetries(taskId);
+      },
+      this.circuitBreakerOptions,
+    );
 
-      while (attempt < maxRetries) {
-        try {
-          const response = await axios.post(`${this.executionServiceUrl}/process`, { task_id: taskId });
-          return response;
-        } catch (error) {
-          lastError = error;
-          attempt++;
-          if (attempt < maxRetries) {
-            console.log(`Retrying request (${attempt}/${maxRetries})...`);
-            await this.delay(1000 * attempt); // Exponential backoff delay
-          }
-        }
-      }
-
-      // After all retries have failed, throw the last encountered error
-      throw lastError;
-    };
-
-    // Create the circuit breaker instance
-    this.breaker = new CircuitBreaker(axiosPostWithRetries, options);
-
-    // Fallback function when the circuit is open
     this.breaker.fallback(() => {
       throw new HttpException(
-        'Circuit breaker is open. Please try again later.',
+        'Task Execution Service is currently unavailable',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
     });
 
-    // Log circuit breaker events
     this.breaker.on('open', () => {
-      console.log('Circuit breaker opened');
+      this.logger.warn('Circuit breaker is now OPEN. All requests will fail fast.');
     });
+
     this.breaker.on('halfOpen', () => {
-      console.log('Circuit breaker half-open');
+      this.logger.log('Circuit breaker is HALF-OPEN. Testing the service.');
     });
+
     this.breaker.on('close', () => {
-      console.log('Circuit breaker closed');
+      this.logger.log('Circuit breaker is now CLOSED. Service has resumed.');
+    });
+
+    this.breaker.on('failure', (error) => {
+      this.logger.error(`Circuit breaker detected a failure: ${error.message}`);
+    });
+
+    this.breaker.on('success', () => {
+      this.logger.log('Request succeeded. Circuit breaker remains closed.');
     });
   }
 
@@ -70,26 +64,73 @@ export class ExecutionController {
     }
 
     try {
-      // Use the circuit breaker to call the axios function with retries
-      const response = await this.breaker.fire(taskId);
-      return response.data;
+      const result = await this.breaker.fire(taskId);
+      return result;
     } catch (error) {
       if (error instanceof HttpException) {
-        // Error thrown by the circuit breaker or fallback
         throw error;
-      } else if (error.response) {
-        throw new HttpException(error.response.data, error.response.status);
+      } else if (error.message === 'Breaker is open') {
+        throw new HttpException(
+          'Circuit breaker engaged: Task Execution Service is temporarily unavailable',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
       } else {
         throw new HttpException(
-          'Failed to communicate with Task Execution Service after multiple retries',
+          'Failed to execute task',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
     }
   }
 
-  // Helper function for delay
-  private delay(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  private async executeWithReroutesAndRetries(taskId: number): Promise<any> {
+    let lastError;
+    let rerouteCount = 0;
+
+    for (const serviceUrl of this.executionServiceUrls) {
+      if (rerouteCount >= this.maxReroutes) {
+        break;
+      }
+
+      try {
+        const result = await this.executeWithRetries(taskId, serviceUrl, this.maxRetries);
+        return result;
+      } catch (error) {
+        lastError = error;
+        rerouteCount++;
+        this.logger.warn(
+          `Service at ${serviceUrl} failed. Rerouting to next service (${rerouteCount}/${this.maxReroutes})...`,
+        );
+      }
+    }
+
+    this.logger.error(
+      `All reroutes (${this.maxReroutes}) have failed. Circuit breaker will engage if failure rate is high.`,
+    );
+    throw lastError;
+  }
+
+  private async executeWithRetries(
+    taskId: number,
+    serviceUrl: string,
+    retries: number,
+  ): Promise<any> {
+    try {
+      const response = await axios.post(`${serviceUrl}/process`, { task_id: taskId });
+      return response.data;
+    } catch (error) {
+      if (retries > 1) {
+        const attempt = this.maxRetries - retries + 1;
+        this.logger.warn(
+          `Request to ${serviceUrl} failed. Retrying attempt ${attempt}/${this.maxRetries}...`,
+        );
+        return this.executeWithRetries(taskId, serviceUrl, retries - 1);
+      } else {
+        this.logger.error(
+          `All retries (${this.maxRetries}) for ${serviceUrl} have failed.`,
+        );
+        throw error;
+      }
+    }
   }
 }
