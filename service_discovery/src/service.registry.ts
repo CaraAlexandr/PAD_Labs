@@ -5,10 +5,6 @@ import * as Redis from 'ioredis';
 export class ServiceRegistry {
   private readonly redis: Redis.Redis;
 
-  constructor() {
-    this.redis = new Redis({ host: 'redis_pad', port: 6379 });
-  }
-
   // Register a service with a specific name and URL
   async registerService(serviceName: string, serviceUrl: string) {
     await this.redis.hset('services', serviceName, serviceUrl);

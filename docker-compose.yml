@@ -1,64 +1,77 @@
-version: '3'
-
 services:
-  # Redis Cluster Nodes
   redis-node-1:
-    image: redis:6.0-alpine
-    hostname: redis-node-1
-    command: redis-server --port 7001 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-1:/data
+      - ./redis-conf/redis-node-1.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7001:7001"
+    networks:
+      - backend
+    hostname: redis-node-1
 
   redis-node-2:
-    image: redis:6.0-alpine
-    hostname: redis-node-2
-    command: redis-server --port 7002 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-2:/data
+      - ./redis-conf/redis-node-2.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7002:7002"
+    networks:
+      - backend
+    hostname: redis-node-2
 
   redis-node-3:
-    image: redis:6.0-alpine
-    hostname: redis-node-3
-    command: redis-server --port 7003 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-3:/data
+      - ./redis-conf/redis-node-3.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7003:7003"
+    networks:
+      - backend
+    hostname: redis-node-3
 
   redis-node-4:
-    image: redis:6.0-alpine
-    hostname: redis-node-4
-    command: redis-server --port 7004 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-4:/data
+      - ./redis-conf/redis-node-4.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7004:7004"
+    networks:
+      - backend
+    hostname: redis-node-4
 
   redis-node-5:
-    image: redis:6.0-alpine
-    hostname: redis-node-5
-    command: redis-server --port 7005 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-5:/data
+      - ./redis-conf/redis-node-5.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7005:7005"
+    networks:
+      - backend
+    hostname: redis-node-5
 
   redis-node-6:
-    image: redis:6.0-alpine
-    hostname: redis-node-6
-    command: redis-server --port 7006 --cluster-enabled yes --cluster-config-file nodes.conf --cluster-node-timeout 5000 --appendonly yes --dir /data
-    networks:
-      redis_cluster:
+    image: redis:6.2-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      - ./redis-data/node-6:/data
+      - ./redis-conf/redis-node-6.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "7006:7006"
+    networks:
+      - backend
+    hostname: redis-node-6
 
-  # Redis Cluster Setup
   redis-cluster-setup:
-    image: redis:6.0-alpine
+    image: redis:latest
+    ports:
+      - "6999:6999"
+    networks:
+      - backend
+    command: redis-cli -p 7000 --cluster create redis-node-1:7001 redis-node-2:7002 redis-node-3:7003 redis-node-4:7004 redis-node-5:7005 redis-node-6:7006 --cluster-replicas 1 --cluster-yes
     depends_on:
       - redis-node-1
       - redis-node-2
@@ -66,11 +79,18 @@ services:
       - redis-node-4
       - redis-node-5
       - redis-node-6
-    command: redis-cli -p 7000 --cluster create redis-node-1:7001 redis-node-2:7002 redis-node-3:7003 redis-node-4:7004 redis-node-5:7005 redis-node-6:7006 --cluster-replicas 1 --cluster-yes
-    networks:
-      redis_cluster:
 
-  # Postgres Databases
+  redis-insight:
+    image: redislabs/redisinsight
+    ports:
+      - "8001:8001"
+    networks:
+      - backend
+    volumes:
+      - ./redisinsight:/db
+    depends_on:
+      - redis-cluster-setup
+
   db_task_management:
     image: postgres:13-alpine
     environment:
@@ -95,7 +115,6 @@ services:
       - backend
     restart: unless-stopped
 
-  # Task Management Service
   task_management_service:
     build:
       context: ./task_management_service
@@ -112,9 +131,8 @@ services:
     deploy:
       replicas: 3
     ports:
-      - "5000"  # Expose port for monitoring
+      - "5000"
 
-  # Task Execution Service
   task_execution_service:
     build:
       context: ./task_execution_service
@@ -133,27 +151,22 @@ services:
     deploy:
       replicas: 3
     ports:
-      - "5001"  # Expose port for monitoring
+      - "5001"
 
-  # Gateway Service
   gateway_pad:
     build:
       context: ./gateway
       dockerfile: Dockerfile
     ports:
       - "8002:3000"
-#    depends_on:
-#      - task_management_service
-#      - task_execution_service
     environment:
-      - TASK_MANAGEMENT_URL=http://task_management_service:5000/tasks
-      - TASK_EXECUTION_URL=http://task_execution_service:5001/
-      - TASK_EXECUTION_URLS=http://task_execution_service:5001/,http://task_execution_service:5001/,http://task_execution_service:5001/
+      TASK_MANAGEMENT_URL: http://task_management_service:5000/tasks
+      TASK_EXECUTION_URL: http://task_execution_service:5001/
+      TASK_EXECUTION_URLS: http://task_execution_service:5001/,http://task_execution_service:5001/,http://task_execution_service:5001/
     networks:
       - backend
     restart: unless-stopped
 
-  # Monitoring Services
   prometheus:
     image: prom/prometheus
     volumes:
@@ -170,20 +183,18 @@ services:
     networks:
       - backend
 
-  # Nginx Service
   nginx:
     image: nginx:alpine
     ports:
       - "80:80"
     volumes:
       - ./default.conf:/etc/nginx/default.conf
-      - ./logs/nginx:/var/log/nginx  # Mount logs to a local directory
+      - ./logs/nginx:/var/log/nginx
     depends_on:
       - gateway_pad
     networks:
       - backend
     restart: unless-stopped
-
 
 networks:
   backend:
